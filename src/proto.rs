@@ -16,10 +16,22 @@ impl<M: LiftingMonoid + SiseMonoid> Message<M> {
         let mut resp_parts = vec![];
         let mut new_items = vec![];
 
+        'L:
         for (range, part) in parts {
             match part {
                 MessagePart::Fingerprint(fp) => {
+                    let root: &Node<M> = &root;
+                    if root.monoid() == fp {
+                        break 'L;
+                    }
 
+                    // we need to split now.
+                    let (left, right) = match range {
+                        Range::Full => (1,2),
+                        Range::UpTo(_) => todo!(),
+                        Range::StartingFrom(_) => todo!(),
+                        Range::Between(_, _) => todo!(),
+                    };
                 }
                 MessagePart::ItemSet(items, already_received) => {
                     new_items.extend(items.iter().cloned());

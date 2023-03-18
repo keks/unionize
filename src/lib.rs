@@ -31,7 +31,7 @@ macro_rules! impl_NodeData_on_Node {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct SumMonoid(u64);
 
 impl LiftingMonoid for SumMonoid {
@@ -51,7 +51,7 @@ impl LiftingMonoid for SumMonoid {
     }
 }
 
-trait LiftingMonoid: Clone + Debug {
+trait LiftingMonoid: Clone + Debug + Eq {
     type Item: Clone + Debug + Ord;
 
     fn neutral() -> Self;
