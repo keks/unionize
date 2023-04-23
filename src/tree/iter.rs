@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{cursor::Cursor, range::Range, sexpr::SiseMonoid, ChildId, LiftingMonoid, Node};
+use crate::{tree::cursor::Cursor, range::Range, tree::ChildId, LiftingMonoid, Node};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Items<M: LiftingMonoid> {
@@ -29,7 +29,7 @@ impl<M: LiftingMonoid> Node<M> {
     }
 }
 
-impl<M: LiftingMonoid + SiseMonoid> Iterator for Items<M> {
+impl<M: LiftingMonoid> Iterator for Items<M> where M::Item: std::fmt::Debug {
     type Item = M::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -41,7 +41,7 @@ impl<M: LiftingMonoid + SiseMonoid> Iterator for Items<M> {
         let result = match &self.prev {
             // in this case we are called for the first time
             None => {
-                let item = match self.range.clone() {
+                let item = match &self.range {
                     Range::Full | Range::UpTo(_) => current.get_item(0),
 
                     Range::StartingFrom(start) | Range::Between(start, _) => {
@@ -142,6 +142,7 @@ impl<M: LiftingMonoid + SiseMonoid> Iterator for Items<M> {
                 self.is_done = true;
                 return None;
             }
+            crate::range::RangeCompare::InBetween => unreachable!(), // can only occur for NewRange
         }
 
         self.prev = Some(item.clone());
@@ -153,7 +154,7 @@ impl<M: LiftingMonoid + SiseMonoid> Iterator for Items<M> {
 mod tests {
     use std::rc::Rc;
 
-    use crate::{range::Range, LiftingMonoid, Node, SumMonoid};
+    use crate::{range::Range, LiftingMonoid, Node, monoid::sum::SumMonoid};
 
     #[test]
     fn full_works() {
