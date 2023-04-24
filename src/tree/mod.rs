@@ -114,9 +114,9 @@ impl<M: LiftingMonoid, const N: usize> NodeData<M, N> {
         assert_eq!(N + 1, N_PLUS_1);
 
         let found = self.items.iter().position(|x| &item < x);
-        let (pos, before_range, after_range) = match found {
-            Some(pos) => (pos, 0..pos, pos..N),
-            None => (N, 0..N, N..N),
+        let (before_range, after_range) = match found {
+            Some(pos) => (0..pos, pos..N),
+            None => (0..N, N..N),
         };
 
         // we may need to add the last_child here somehow? ->
@@ -162,10 +162,12 @@ impl<M: LiftingMonoid, const N: usize> NodeData<M, N> {
         self.items.iter().find(|cur_item| item < cur_item).cloned()
     }
 
+    #[allow(unused_mut)]
     pub fn find_item<F: FnMut(&&M::Item) -> bool>(&self, mut f: F) -> Option<M::Item> {
         self.items.iter().find(f).cloned()
     }
 
+    #[allow(unused_mut)]
     pub fn item_position<F: FnMut(&M::Item) -> bool>(&self, mut f: F) -> Option<usize> {
         self.items.iter().position(f)
     }
@@ -307,6 +309,7 @@ impl<M: LiftingMonoid> Node<M> {
     impl_NodeData_on_Node!(is_leaf . => bool);
     impl_NodeData_on_Node!(n . => usize);
 
+    #[allow(unused_mut)]
     pub fn find_item<F: FnMut(&&M::Item) -> bool>(&self, mut f: F) -> Option<M::Item> {
         match self {
             Node::Node2(node_data) => node_data.find_item(f),
@@ -315,6 +318,7 @@ impl<M: LiftingMonoid> Node<M> {
         }
     }
 
+    #[allow(unused_mut)]
     pub fn item_position<F: FnMut(&M::Item) -> bool>(&self, mut f: F) -> Option<usize> {
         match self {
             Node::Node2(node_data) => node_data.item_position(f),
@@ -329,31 +333,5 @@ impl<M: LiftingMonoid> Node<M> {
     #[must_use]
     pub fn is_nil(&self) -> bool {
         matches!(self, Self::Nil(..))
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::{LiftingMonoid, Node};
-    use crate::monoid::sum::SumMonoid;
-
-    #[test]
-    fn example_node2() {
-        let root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
-
-        println!("{:}", root.insert(30).insert(60).insert(50));
-    }
-
-    #[test]
-    fn example_node3() {
-        let mut root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
-
-        root = root.insert(1);
-        root = root.insert(2);
-        root = root.insert(4);
-        root = root.insert(16);
-        root = root.insert(8);
-
-        println!("{root}");
     }
 }

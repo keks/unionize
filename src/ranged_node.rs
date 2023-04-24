@@ -1,7 +1,7 @@
-use std::{ops::Deref, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
-    range::{NewRange, Rangable},
+    range::{Rangable, Range},
     tree::ChildId,
     LiftingMonoid, Node,
 };
@@ -12,7 +12,7 @@ where
     M::Item: Rangable,
 {
     node: &'a Rc<Node<M>>,
-    range: NewRange<M::Item>,
+    range: Range<M::Item>,
 }
 
 impl<'a, M> RangedRcNode<'a, M>
@@ -28,7 +28,7 @@ where
         &self.node
     }
 
-    pub fn range(&self) -> &NewRange<M::Item> {
+    pub fn range(&self) -> &Range<M::Item> {
         &self.range
     }
 }
@@ -51,7 +51,7 @@ where
     M::Item: Rangable,
 {
     node: &'a Node<M>,
-    range: NewRange<M::Item>,
+    range: Range<M::Item>,
 }
 
 impl<'a, M> RangedNode<'a, M>
@@ -59,7 +59,7 @@ where
     M: LiftingMonoid,
     M::Item: Rangable,
 {
-    pub fn new(node: &'a Node<M>, range: NewRange<M::Item>) -> Self {
+    pub fn new(node: &'a Node<M>, range: Range<M::Item>) -> Self {
         RangedNode { node, range }
     }
 
@@ -67,7 +67,7 @@ where
         self.node
     }
 
-    pub fn range(&self) -> &NewRange<M::Item> {
+    pub fn range(&self) -> &Range<M::Item> {
         &self.range
     }
 
@@ -79,43 +79,39 @@ where
     }
 
     pub fn last_child(&self) -> RangedRcNode<'a, M> {
-        let NewRange(_, to) = &self.range;
+        let Range(_, to) = &self.range;
         match &self.node {
             Node::Node2(_) | Node::Node3(_) => RangedRcNode {
                 node: self.node.last_child(),
-                range: NewRange(self.node.last_item().clone(), to.clone()),
+                range: Range(self.node.last_item().clone(), to.clone()),
             },
             Node::Nil(_) => panic!("nil node doesn't have last child"),
         }
     }
 
     pub fn get_child(&self, child_id: ChildId) -> Option<RangedRcNode<'a, M>> {
-        let NewRange(from, to) = &self.range;
+        let Range(from, to) = &self.range;
         match (&self.node, child_id) {
             // failure cases first, for visibility
-            (Node::Node2(node_data), ChildId::Normal(offs)) if offs > 0 => None,
-            (Node::Node3(node_data), ChildId::Normal(offs)) if offs > 1 => None,
+            (Node::Node2(_node_data), ChildId::Normal(offs)) if offs > 0 => None,
+            (Node::Node3(_node_data), ChildId::Normal(offs)) if offs > 1 => None,
             (Node::Nil(_), _) => None,
 
             (Node::Node2(node_data), ChildId::Normal(offs)) => {
                 let item = &node_data.items()[offs];
                 let child = &node_data.children().0[offs];
-                Some(
-                    (RangedRcNode {
-                        node: child,
-                        range: NewRange(from.clone(), item.clone()),
-                    }),
-                )
+                Some(RangedRcNode {
+                    node: child,
+                    range: Range(from.clone(), item.clone()),
+                })
             }
             (Node::Node2(node_data), ChildId::Last) => {
                 let item = &node_data.items()[0];
                 let child = node_data.children().1;
-                Some(
-                    (RangedRcNode {
-                        node: child,
-                        range: NewRange(item.clone(), to.clone()),
-                    }),
-                )
+                Some(RangedRcNode {
+                    node: child,
+                    range: Range(item.clone(), to.clone()),
+                })
             }
             (Node::Node3(node_data), ChildId::Normal(offs)) => {
                 let from_item = if offs == 0 {
@@ -125,22 +121,18 @@ where
                 };
                 let to_item = &node_data.items()[offs];
                 let child = &node_data.children().0[offs];
-                Some(
-                    (RangedRcNode {
-                        node: child,
-                        range: NewRange(from_item.clone(), to_item.clone()),
-                    }),
-                )
+                Some(RangedRcNode {
+                    node: child,
+                    range: Range(from_item.clone(), to_item.clone()),
+                })
             }
             (Node::Node3(node_data), ChildId::Last) => {
                 let item = &node_data.items()[1];
                 let child = node_data.children().1;
-                Some(
-                    (RangedRcNode {
-                        node: child,
-                        range: NewRange(item.clone(), to.clone()),
-                    }),
-                )
+                Some(RangedRcNode {
+                    node: child,
+                    range: Range(item.clone(), to.clone()),
+                })
             }
         }
     }

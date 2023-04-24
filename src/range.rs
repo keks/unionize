@@ -3,9 +3,9 @@ use std::fmt::Debug;
 pub trait Rangable: std::fmt::Debug + Ord + Clone {}
 
 #[derive(Debug, Clone)]
-pub struct NewRange<T: Rangable>(pub(crate) T, pub(crate) T);
+pub struct Range<T: Rangable>(pub(crate) T, pub(crate) T);
 
-impl<T: Rangable> NewRange<T> {
+impl<T: Rangable> Range<T> {
     pub fn from(&self) -> &T {
         if self.is_wrapping() {
             &self.1
@@ -22,17 +22,17 @@ impl<T: Rangable> NewRange<T> {
     }
 
     pub(crate) fn is_wrapping(&self) -> bool {
-        let NewRange(from, to) = self;
+        let Range(from, to) = self;
         from >= to
     }
 
     pub(crate) fn is_full(&self) -> bool {
-        let NewRange(from, to) = self;
+        let Range(from, to) = self;
         from == to
     }
 
     pub(crate) fn contains(&self, item: &T) -> bool {
-        let NewRange(from, to) = self;
+        let Range(from, to) = self;
         if from == to {
             return true;
         }
@@ -49,7 +49,7 @@ impl<T: Rangable> NewRange<T> {
         if self.is_full() {
             RangeCompare::Included
         } else if self.is_wrapping() {
-            let NewRange(to, from) = self;
+            let Range(to, from) = self;
             match (from.cmp(item), to.cmp(item)) {
                 (_, std::cmp::Ordering::Less) | (std::cmp::Ordering::Greater, _) => {
                     RangeCompare::Included
@@ -60,7 +60,7 @@ impl<T: Rangable> NewRange<T> {
                 (std::cmp::Ordering::Less, std::cmp::Ordering::Greater) => RangeCompare::InBetween,
             }
         } else {
-            let NewRange(from, to) = self;
+            let Range(from, to) = self;
             match (from.cmp(item), to.cmp(item)) {
                 // this can only occur for wrapping ranges
                 (std::cmp::Ordering::Less, std::cmp::Ordering::Greater) => unreachable!(),
@@ -124,7 +124,7 @@ impl<T: Rangable> NewRange<T> {
         }
     }
 
-    pub(crate) fn intersect(&self, other: &Self) -> Option<NewRange<T>> {
+    pub(crate) fn intersect(&self, other: &Self) -> Option<Range<T>> {
         if self.is_full() {
             Some(other.clone())
         } else if other.is_full() {
@@ -188,11 +188,11 @@ impl<T: Rangable> NewRange<T> {
         ));
         assert!(!self.is_wrapping() || self.is_full());
 
-        Self(self.0.clone(), new_start)
+        Self(new_start, self.1.clone())
     }
 }
 
-impl<T: Rangable + std::fmt::Debug> std::fmt::Display for NewRange<T> {
+impl<T: Rangable + std::fmt::Debug> std::fmt::Display for Range<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self(from, to) = self;
         write!(f, "{from:?}..{to:?}")

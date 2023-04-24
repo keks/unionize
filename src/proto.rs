@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     monoid::FormattingMonoid,
-    range::{NewRange, Rangable},
+    range::{Rangable, Range},
     Node,
 };
 
@@ -10,7 +10,7 @@ pub trait ProtocolMonoid: FormattingMonoid {
     fn count(&self) -> usize;
 }
 
-enum MessagePart<M: ProtocolMonoid> {
+pub enum MessagePart<M: ProtocolMonoid> {
     Fingerprint(M),
     ItemSet(Vec<M::Item>, bool),
 }
@@ -33,11 +33,11 @@ impl<M: ProtocolMonoid> MessagePart<M> {
     }
 }
 
-struct Message<M: ProtocolMonoid>(Vec<(NewRange<M::Item>, MessagePart<M>)>)
+pub struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>)
 where
     M::Item: Rangable;
 
-fn respond_to_message<M: ProtocolMonoid>(
+pub fn respond_to_message<M: ProtocolMonoid>(
     root: Rc<Node<M>>,
     msg: &Message<M>,
 ) -> (Message<M>, Vec<M::Item>)

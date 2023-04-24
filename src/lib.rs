@@ -1,15 +1,13 @@
-mod range;
-mod proto;
+pub mod proto;
+pub mod range;
 
+pub mod monoid;
+pub mod query;
 mod tree;
-mod monoid;
-mod query;
 
 mod ranged_node;
 
-
-pub use tree::{
-  Tree, Node
-};
+pub use tree::{Node, Tree};
 
 pub use monoid::LiftingMonoid;
+

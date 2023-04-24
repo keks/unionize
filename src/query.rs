@@ -1,6 +1,6 @@
 use crate::{
     proto::ProtocolMonoid,
-    range::{NewRange, Rangable},
+    range::{Rangable, Range},
     ranged_node::RangedNode,
     LiftingMonoid, Node,
 };
@@ -11,7 +11,7 @@ where
     M: LiftingMonoid,
     M::Item: Debug + Rangable,
 {
-    pub fn query_range(&self, query_range: &NewRange<M::Item>) -> M {
+    pub fn query_range(&self, query_range: &Range<M::Item>) -> M {
         // the only time the node range can be wrapping is when it's full.
         // in other words, from <= to (where from == to means full range)
         println!("enter:  N:{:?}/Q:{:?}", self.range(), query_range);
@@ -40,7 +40,7 @@ where
             return self.node().monoid().clone();
         }
 
-        let NewRange(query_from, query_to) = query_range;
+        let Range(query_from, query_to) = query_range;
 
         if query_from == query_to {
             println!(
@@ -117,7 +117,7 @@ where
                         if item > query_from {
                             println!("  recursing...");
                             let next_query_range =
-                                NewRange(query_from.clone(), child.range().to().clone());
+                                Range(query_from.clone(), child.range().to().clone());
                             let child_result = child.query_range(&next_query_range);
                             before_wrap = before_wrap.combine(&child_result);
                         }
@@ -142,7 +142,7 @@ where
                         // happens, we just skip it.
                         if child.range().from() != query_to {
                             let next_query_range =
-                                NewRange(child.range().from().clone(), query_to.clone());
+                                Range(child.range().from().clone(), query_to.clone());
                             let child_result = child.query_range(&next_query_range);
                             after_wrap = after_wrap.combine(&child_result);
                         }
@@ -287,11 +287,7 @@ where
     M: ProtocolMonoid,
     M::Item: Debug + Rangable,
 {
-    pub fn query_range_split(
-        &self,
-        query_range: &NewRange<M::Item>,
-        split_sizes: &[usize],
-    ) -> Vec<M> {
+    pub fn query_range_split(&self, query_range: &Range<M::Item>, split_sizes: &[usize]) -> Vec<M> {
         let mut state = SplitQueryState::new(split_sizes);
         self.query_range_split_inner(query_range, &mut state);
 
@@ -300,7 +296,7 @@ where
 
     fn query_range_split_inner(
         &self,
-        query_range: &NewRange<M::Item>,
+        query_range: &Range<M::Item>,
         state: &mut SplitQueryState<'a, M>,
     ) {
         // the only time the node range can be wrapping is when it's full.
@@ -332,7 +328,7 @@ where
             return;
         }
 
-        let NewRange(query_from, query_to) = query_range;
+        let Range(query_from, query_to) = query_range;
 
         if query_from == query_to {
             println!(
@@ -397,7 +393,7 @@ where
                         if item > query_from {
                             println!("  recursing...");
                             let next_query_range =
-                                NewRange(query_from.clone(), child.range().to().clone());
+                                Range(query_from.clone(), child.range().to().clone());
                             child.query_range_split_inner(&next_query_range, state);
                         }
 
@@ -415,7 +411,7 @@ where
                     let last_child: RangedNode<M> = last_child.into();
                     if last_child.range().to() > query_from {
                         let next_query_range =
-                            NewRange(query_from.clone(), last_child.range().to().clone());
+                            Range(query_from.clone(), last_child.range().to().clone());
                         last_child.query_range_split_inner(&next_query_range, state);
                     }
                 }
@@ -449,7 +445,7 @@ where
                         if child.range().from() != query_to {
                             println!("  recursing...");
                             let next_query_range =
-                                NewRange(child.range().from().clone(), query_to.clone());
+                                Range(child.range().from().clone(), query_to.clone());
                             child.query_range_split_inner(&next_query_range, state);
                         }
 
@@ -470,7 +466,7 @@ where
                 if last_child.range().from() < query_to {
                     {
                         let next_query_range =
-                            NewRange(last_child.range().from().clone(), query_to.clone());
+                            Range(last_child.range().from().clone(), query_to.clone());
                         last_child.query_range_split_inner(&next_query_range, state);
                     }
                 }
@@ -490,7 +486,7 @@ mod test {
             FormattingMonoid,
         },
         proto::ProtocolMonoid,
-        range::{NewRange, Rangable},
+        range::{Rangable, Range},
         ranged_node::RangedNode,
         LiftingMonoid, Node,
     };
@@ -553,7 +549,7 @@ mod test {
         fn new_split_range_query_correctness_two_buckets(items in prop::collection::vec(1..1000u64, 1..100usize), from in 0..1000u64, to in 0..1000u64) {
             println!();
             let item_set: HashSet<u64> = HashSet::from_iter(items.iter().cloned());
-            let query_range = NewRange(from, to);
+            let query_range = Range(from, to);
             println!("items used in test: {:?}", item_set);
             println!("query range: {:?}", query_range);
 
@@ -567,7 +563,7 @@ mod test {
             let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
             let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-            let ranged_root = RangedNode::new(&root, NewRange(min, max+1));
+            let ranged_root = RangedNode::new(&root, Range(min, max+1));
             let query_result = ranged_root.query_range(&query_range);
 
             let item_count = query_result.count();
@@ -635,8 +631,8 @@ mod test {
             let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
             let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-            let ranged_root = RangedNode::new(&root, NewRange(min, max+1));
-            let query_result = ranged_root.query_range_split(&NewRange(from, to), &[item_set.len()]);
+            let ranged_root = RangedNode::new(&root, Range(min, max+1));
+            let query_result = ranged_root.query_range_split(&Range(from, to), &[item_set.len()]);
 
             let expected = if from < to {
                 item_set.iter().filter(|item| from <= **item && **item < to).fold(TestMonoid::neutral(), |acc, item| acc.combine(&TestMonoid::lift(item)))
@@ -668,8 +664,8 @@ mod test {
             let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
             let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-            let ranged_root = RangedNode::new(&root, NewRange(min, max+1));
-            let query_result = ranged_root.query_range(&NewRange(from, to));
+            let ranged_root = RangedNode::new(&root, Range(min, max+1));
+            let query_result = ranged_root.query_range(&Range(from, to));
 
             let expected = if from < to {
                 item_set.iter().filter(|item| from <= **item && **item < to).fold(SumMonoid(0), |acc, item| acc.combine(&SumMonoid::lift(item)))
@@ -688,7 +684,7 @@ mod test {
         let items = vec![13, 30, 395, 899];
         let from = 904;
         let to = 442;
-        let query_range = NewRange(from, to);
+        let query_range = Range(from, to);
         println!("items used in test: {:?}", items);
         println!("query range: {:?}", query_range);
 
@@ -702,7 +698,7 @@ mod test {
         let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
         let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-        let ranged_root = RangedNode::new(&root, NewRange(min, max + 1));
+        let ranged_root = RangedNode::new(&root, Range(min, max + 1));
         let query_result = ranged_root.query_range(&query_range);
 
         println!("------------------------------");
@@ -772,7 +768,7 @@ mod test {
         let items = vec![804, 826, 219, 900, 343, 721, 916];
         let from = 695;
         let to = 227;
-        let query_range = NewRange(from, to);
+        let query_range = Range(from, to);
         println!("items used in test: {:?}", items);
         println!("query range: {:?}", query_range);
 
@@ -786,7 +782,7 @@ mod test {
         let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
         let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-        let ranged_root = RangedNode::new(&root, NewRange(min, max + 1));
+        let ranged_root = RangedNode::new(&root, Range(min, max + 1));
         let query_result = ranged_root.query_range(&query_range);
 
         println!("------------------------------");
@@ -871,8 +867,8 @@ mod test {
         let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
         let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-        let ranged_root = RangedNode::new(&root, NewRange(min - 1, max + 1));
-        let query_result = ranged_root.query_range(&NewRange(from, to));
+        let ranged_root = RangedNode::new(&root, Range(min - 1, max + 1));
+        let query_result = ranged_root.query_range(&Range(from, to));
 
         let expected = if from < to {
             items
@@ -915,8 +911,8 @@ mod test {
         let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
         let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-        let ranged_root = RangedNode::new(&root, NewRange(min - 1, max + 1));
-        let query_result = ranged_root.query_range(&NewRange(from, to));
+        let ranged_root = RangedNode::new(&root, Range(min - 1, max + 1));
+        let query_result = ranged_root.query_range(&Range(from, to));
 
         let expected = if from < to {
             items
