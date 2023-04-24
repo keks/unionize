@@ -1,8 +1,8 @@
 use crate::LiftingMonoid;
 use std::rc::Rc;
 
-mod insert;
 mod fmt;
+mod insert;
 mod iter;
 
 pub mod cursor;
@@ -36,8 +36,8 @@ impl<M: LiftingMonoid, const N: usize> NodeData<M, N> {
         let total = Self::compute_total(&items, &children, &last_child);
 
         NodeData {
-            items: items,
-            children: children,
+            items,
+            children,
             last_child,
             total,
         }
@@ -52,14 +52,18 @@ impl<M: LiftingMonoid, const N: usize> NodeData<M, N> {
     }
 
     pub fn last_item(&self) -> &M::Item {
-        &self.items[N-1]
+        &self.items[N - 1]
     }
 
     pub fn last_child(&self) -> &Rc<Node<M>> {
         &self.last_child
     }
 
-    pub fn compute_total(items: &[M::Item; N], children: &[Rc<Node<M>>; N], last_child: &Node<M>) -> M {
+    pub fn compute_total(
+        items: &[M::Item; N],
+        children: &[Rc<Node<M>>; N],
+        last_child: &Node<M>,
+    ) -> M {
         let mut total = M::neutral();
         for i in 0..N {
             total = total.combine(children[i].as_ref().monoid());
@@ -306,7 +310,6 @@ impl<M: LiftingMonoid> Node<M> {
     impl_NodeData_on_Node!(is_leaf . => bool);
     impl_NodeData_on_Node!(n . => usize);
 
-
     pub fn find_item<F: FnMut(&&M::Item) -> bool>(&self, mut f: F) -> Option<M::Item> {
         match self {
             Node::Node2(node_data) => node_data.find_item(f),
@@ -337,17 +340,16 @@ mod test {
     use super::{LiftingMonoid, Node};
     use crate::monoid::sum::SumMonoid;
 
-
     #[test]
     fn example_node2() {
-        let root = Node::<SumMonoid>::Nil(SumMonoid::lift(&0));
+        let root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
 
         println!("{:}", root.insert(30).insert(60).insert(50));
     }
 
     #[test]
     fn example_node3() {
-        let mut root = Node::<SumMonoid>::Nil(SumMonoid::lift(&0));
+        let mut root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
 
         root = root.insert(1);
         root = root.insert(2);

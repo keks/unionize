@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{tree::cursor::Cursor, range::Range, tree::ChildId, LiftingMonoid, Node};
+use crate::{range::Range, tree::cursor::Cursor, tree::ChildId, LiftingMonoid, Node};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Items<M: LiftingMonoid> {
@@ -29,7 +29,10 @@ impl<M: LiftingMonoid> Node<M> {
     }
 }
 
-impl<M: LiftingMonoid> Iterator for Items<M> where M::Item: std::fmt::Debug {
+impl<M: LiftingMonoid> Iterator for Items<M>
+where
+    M::Item: std::fmt::Debug,
+{
     type Item = M::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -154,11 +157,11 @@ impl<M: LiftingMonoid> Iterator for Items<M> where M::Item: std::fmt::Debug {
 mod tests {
     use std::rc::Rc;
 
-    use crate::{range::Range, LiftingMonoid, Node, monoid::sum::SumMonoid};
+    use crate::{monoid::sum::SumMonoid, range::Range, LiftingMonoid, Node};
 
     #[test]
     fn full_works() {
-        let mut root = Node::<SumMonoid>::Nil(SumMonoid::lift(&0));
+        let mut root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
 
         root = root.insert(1);
         root = root.insert(2);
@@ -166,7 +169,7 @@ mod tests {
         root = root.insert(16);
         root = root.insert(8);
 
-        let items = Node::<SumMonoid>::items(Rc::new(root.clone()), Range::Full);
+        let items = Node::<SumMonoid<u64>>::items(Rc::new(root.clone()), Range::Full);
 
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8, 16], collected, "{root}");
@@ -174,7 +177,7 @@ mod tests {
 
     #[test]
     fn starting_from_works() {
-        let mut root = Node::<SumMonoid>::Nil(SumMonoid::lift(&0));
+        let mut root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
 
         root = root.insert(1);
         root = root.insert(2);
@@ -184,50 +187,50 @@ mod tests {
 
         let rc_root = Rc::new(root.clone());
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(0));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(0));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(1));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(1));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(2));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(2));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2, 4, 8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(3));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(3));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(4));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8, 16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![16], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::StartingFrom(24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::StartingFrom(24));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
     }
 
     #[test]
     fn up_to_works() {
-        let mut root = Node::<SumMonoid>::Nil(SumMonoid::lift(&0));
+        let mut root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
 
         root = root.insert(1);
         root = root.insert(2);
@@ -237,50 +240,50 @@ mod tests {
 
         let rc_root = Rc::new(root.clone());
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(0));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(0));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(1));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(1));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(2));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(2));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(3));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(3));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(4));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::UpTo(24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::UpTo(24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8, 16], collected, "{rc_root}");
     }
 
     #[test]
     fn between_works() {
-        let mut root = Node::<SumMonoid>::Nil(SumMonoid::lift(&0));
+        let mut root = Node::<SumMonoid<u64>>::Nil(SumMonoid::lift(&0));
 
         root = root.insert(1);
         root = root.insert(2);
@@ -290,241 +293,241 @@ mod tests {
 
         let rc_root = Rc::new(root.clone());
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 0));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 0));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 1));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 1));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 2));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 2));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 3));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 3));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 4));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(0, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(0, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 1));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 1));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 2));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 2));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 3));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 3));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 4));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(1, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(1, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![1, 2, 4, 8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 2));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 2));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 3));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 3));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 4));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2, 4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2, 4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(2, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(2, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![2, 4, 8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 3));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 3));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 4));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(3, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(3, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(4, 4));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(4, 4));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(4, 6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(4, 6));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(4, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(4, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(4, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(4, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(4, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(4, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(4, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(4, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![4, 8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(6, 6));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(6, 6));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(6, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(6, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(6, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(6, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(6, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(6, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(6, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(6, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(8, 8));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(8, 8));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(8, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(8, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(8, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(8, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8], collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(8, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(8, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![8, 16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(12, 12));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(12, 12));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(12, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(12, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(12, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(12, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(16, 16));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(16, 16));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(16, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(16, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(vec![16], collected, "{rc_root}");
 
         ////
 
-        let items = Node::<SumMonoid>::items(rc_root.clone(), Range::Between(18, 24));
+        let items = Node::<SumMonoid<u64>>::items(rc_root.clone(), Range::Between(18, 24));
         let collected: Vec<_> = items.collect();
         assert_eq!(Vec::<u64>::new(), collected, "{rc_root}");
     }

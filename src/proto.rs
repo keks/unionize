@@ -1,17 +1,8 @@
-use std::{
-    fmt::{Debug, Display},
-    marker::PhantomData,
-    rc::Rc,
-};
+use std::rc::Rc;
 
-use crate::{
-    monoid::{count::CountingMonoid, FormattingMonoid},
-    range::Range,
-    tree::{cursor::Cursor, NodeData},
-    LiftingMonoid, Node,
-};
+use crate::{monoid::FormattingMonoid, range::Range, Node};
 
-pub(crate) trait ProtocolMonoid: FormattingMonoid {
+pub trait ProtocolMonoid: FormattingMonoid {
     fn count(&self) -> usize;
 }
 
@@ -40,10 +31,10 @@ impl<M: ProtocolMonoid> MessagePart<M> {
 
 struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>);
 
-
 fn respond_to_message<M: ProtocolMonoid>(
     root: Rc<Node<M>>,
     msg: &Message<M>,
 ) -> (Message<M>, Vec<M::Item>) {
-    (Message(vec![]), vec![])   
+    (Message(vec![]), vec![])
 }
+

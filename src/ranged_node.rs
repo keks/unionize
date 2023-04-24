@@ -44,7 +44,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RangedNode<'a, M>
 where
     M: LiftingMonoid,
