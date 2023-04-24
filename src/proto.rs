@@ -1,6 +1,10 @@
 use std::rc::Rc;
 
-use crate::{monoid::FormattingMonoid, range::Range, Node};
+use crate::{
+    monoid::FormattingMonoid,
+    range::{NewRange, Rangable},
+    Node,
+};
 
 pub trait ProtocolMonoid: FormattingMonoid {
     fn count(&self) -> usize;
@@ -29,12 +33,16 @@ impl<M: ProtocolMonoid> MessagePart<M> {
     }
 }
 
-struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>);
+struct Message<M: ProtocolMonoid>(Vec<(NewRange<M::Item>, MessagePart<M>)>)
+where
+    M::Item: Rangable;
 
 fn respond_to_message<M: ProtocolMonoid>(
     root: Rc<Node<M>>,
     msg: &Message<M>,
-) -> (Message<M>, Vec<M::Item>) {
+) -> (Message<M>, Vec<M::Item>)
+where
+    M::Item: Rangable,
+{
     (Message(vec![]), vec![])
 }
-

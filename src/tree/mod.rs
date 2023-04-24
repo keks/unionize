@@ -3,9 +3,6 @@ use std::rc::Rc;
 
 mod fmt;
 mod insert;
-mod iter;
-
-pub mod cursor;
 
 #[derive(Clone, Debug)]
 pub struct Tree<M: LiftingMonoid>(Rc<Node<M>>);
