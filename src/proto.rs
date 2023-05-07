@@ -131,10 +131,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        monoid::hashxor::HashXorSha256, query::test::TestMonoid, range::Range,
-        ranged_node::RangedNode, Node,
-    };
+    use crate::{monoid::hashxor::HashXorSha256, range::Range, ranged_node::RangedNode, Node};
     use proptest::{prelude::prop, prop_assert, proptest};
     use std::collections::HashSet;
 
@@ -257,6 +254,8 @@ mod tests {
         // the protocol sends a fingerprint for 984..997. the protocol thinks that both parties
         // have the same, since the fingerprints match (because the sums of the values in range are
         // the same, and they have the same count - 3).
+        // This was fixed by using the HashXorSha256 monoid instead of TestMonoid (which was just
+        // adding the numbers)
 
         println!();
 
