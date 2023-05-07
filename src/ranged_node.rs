@@ -6,6 +6,7 @@ use crate::{
     LiftingMonoid, Node,
 };
 
+#[derive(Debug, Clone)]
 pub struct RangedRcNode<'a, M>
 where
     M: LiftingMonoid,
@@ -20,6 +21,10 @@ where
     M: LiftingMonoid,
     M::Item: Rangable,
 {
+    pub fn new(node: &'a Rc<Node<M>>, range: Range<M::Item>) -> Self {
+        Self { node, range }
+    }
+
     pub fn rc_node(&self) -> &Rc<Node<M>> {
         self.node
     }
@@ -30,6 +35,14 @@ where
 
     pub fn range(&self) -> &Range<M::Item> {
         &self.range
+    }
+
+    pub fn ranged_node(&self) -> RangedNode<'a, M> {
+        let RangedRcNode { node, range } = self;
+        RangedNode {
+            node,
+            range: range.clone(),
+        }
     }
 }
 

@@ -4,6 +4,9 @@ use std::rc::Rc;
 mod fmt;
 mod insert;
 
+mod cursor;
+mod iter;
+
 #[derive(Clone, Debug)]
 pub struct Tree<M: LiftingMonoid>(Rc<Node<M>>);
 
@@ -291,6 +294,9 @@ macro_rules! impl_NodeData_on_Node {
 }
 
 impl<M: LiftingMonoid> Node<M> {
+    pub fn nil() -> Self {
+        Self::Nil(M::neutral())
+    }
     pub fn monoid(&self) -> &M {
         match self {
             Node::Node2(node_data) => &node_data.total,

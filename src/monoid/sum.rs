@@ -26,6 +26,13 @@ impl<T: SumItem> LiftingMonoid for SumMonoid<T> {
     }
 }
 
+impl<T: SumItem> SumMonoid<T> {
+    pub fn sum(&self) -> &T {
+        let SumMonoid(sum) = self;
+        sum
+    }
+}
+
 impl<T: SumItem> FormattingMonoid for SumMonoid<T> {
     fn item_to_string(item: &Self::Item) -> String {
         format!("{item:?}")
