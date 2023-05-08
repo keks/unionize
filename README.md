@@ -1,4 +1,4 @@
-# set **recon**ciliation
+# set *recon*ciliation
 
 a first shot at the set reconciliation algorithm in rust. you know the idea, so i'll just give a brief walkthrough through the code.
 
