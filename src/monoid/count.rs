@@ -1,10 +1,19 @@
-use crate::LiftingMonoid;
 use std::marker::PhantomData;
+
+use crate::proto::ProtocolMonoid;
+
+use super::{Item, Monoid};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CountingMonoid<T: Clone + std::fmt::Debug + Ord + Eq>(usize, PhantomData<T>);
 
-impl<T: Clone + std::fmt::Debug + Ord + Eq> LiftingMonoid for CountingMonoid<T> {
+impl<T: Item> ProtocolMonoid for CountingMonoid<T> {
+    fn count(&self) -> usize {
+        self.0
+    }
+}
+
+impl<T: Item> Monoid for CountingMonoid<T> {
     type Item = T;
 
     fn neutral() -> Self {
@@ -17,11 +26,5 @@ impl<T: Clone + std::fmt::Debug + Ord + Eq> LiftingMonoid for CountingMonoid<T> 
 
     fn combine(&self, other: &Self) -> Self {
         CountingMonoid(self.0 + other.0, PhantomData)
-    }
-}
-
-impl<T: Clone + std::fmt::Debug + Ord + Eq> CountingMonoid<T> {
-    pub fn count(&self) -> usize {
-        self.0
     }
 }

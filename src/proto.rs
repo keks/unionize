@@ -1,11 +1,11 @@
 use crate::{
-    monoid::FormattingMonoid,
-    query::{ItemsAccumulator, SplitAccumulator},
-    range::{Rangable, Range},
+    monoid::{Item, Monoid},
+    query::{items::ItemsAccumulator, split::SplitAccumulator},
+    range::Range,
     ranged_node::RangedNode,
 };
 
-pub trait ProtocolMonoid: FormattingMonoid {
+pub trait ProtocolMonoid: Monoid {
     fn count(&self) -> usize;
 }
 
@@ -15,29 +15,15 @@ pub enum MessagePart<M: ProtocolMonoid> {
     ItemSet(Vec<M::Item>, bool),
 }
 
-impl<M: ProtocolMonoid> MessagePart<M> {
-    fn fingerprint(fp: M) -> Self {
-        Self::Fingerprint(fp)
-    }
-
-    fn item_set(items: Vec<M::Item>, already_received: bool) -> Self {
-        Self::ItemSet(items, already_received)
-    }
-
-    fn is_fingerprint(&self) -> bool {
-        matches!(self, Self::Fingerprint(..))
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>)
 where
-    M::Item: Rangable;
+    M::Item: Item;
 
 impl<M> Message<M>
 where
     M: ProtocolMonoid,
-    M::Item: Rangable,
+    M::Item: Item,
 {
     pub fn is_end(&self) -> bool {
         self.0.is_empty()
@@ -47,7 +33,7 @@ where
 pub fn first_message<M>(root: &RangedNode<M>) -> Message<M>
 where
     M: ProtocolMonoid,
-    M::Item: Rangable,
+    M::Item: Item,
 {
     Message(vec![
         (
@@ -65,7 +51,7 @@ pub fn respond_to_message<M: ProtocolMonoid>(
     split: fn(usize) -> Vec<usize>,
 ) -> (Message<M>, Vec<M::Item>)
 where
-    M::Item: Rangable,
+    M::Item: Item,
 {
     let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
     let mut new_items = vec![];
@@ -74,9 +60,6 @@ where
         match part {
             MessagePart::Fingerprint(their_fp) => {
                 let my_fp = root.query_range(range);
-                println!("range:   {range:?}");
-                println!("  rx fp: {their_fp:?}");
-                println!("  my fp: {my_fp:?}");
                 if &my_fp != their_fp {
                     if my_fp.count() < threshold {
                         let mut acc = ItemsAccumulator::new();
@@ -85,17 +68,14 @@ where
                             range.clone(),
                             MessagePart::ItemSet(acc.into_results(), true),
                         ));
-                        println!("  continue...");
                         continue;
                     }
 
                     let splits = split(my_fp.count());
                     let mut acc = SplitAccumulator::new(range, &splits);
                     root.query_range_generic(range, &mut acc);
-                    println!("  acc:   {acc:?}");
                     let results = acc.results();
                     let ranges = acc.ranges();
-                    // println!("a rangesnotreallya: {ranges:?}");
                     for (i, fp) in results.iter().enumerate() {
                         let sub_range = &ranges[i];
                         if fp.count() < threshold {
@@ -131,7 +111,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{monoid::hashxor::HashXorSha256, range::Range, ranged_node::RangedNode, Node};
+    use crate::{monoid::hashxor::CountingSha256Xor, range::Range, ranged_node::RangedNode, Node};
     use proptest::{prelude::prop, prop_assert, proptest};
     use std::collections::HashSet;
 
@@ -153,8 +133,8 @@ mod tests {
             println!("a items: {item_set_a:?}");
             println!("b items: {item_set_b:?}");
 
-            let mut root_a: Node<HashXorSha256<u64>> = Node::nil();
-            let mut root_b: Node<HashXorSha256<u64>> = Node::nil();
+            let mut root_a: Node<CountingSha256Xor<u64>> = Node::nil();
+            let mut root_b: Node<CountingSha256Xor<u64>> = Node::nil();
 
             for item in item_set_a.iter().cloned() {
                 root_a = root_a.insert(item);
@@ -272,8 +252,8 @@ mod tests {
         println!("a items: {item_set_a:?}");
         println!("b items: {item_set_b:?}");
 
-        let mut root_a: Node<HashXorSha256<u64>> = Node::nil();
-        let mut root_b: Node<HashXorSha256<u64>> = Node::nil();
+        let mut root_a: Node<CountingSha256Xor<u64>> = Node::nil();
+        let mut root_b: Node<CountingSha256Xor<u64>> = Node::nil();
 
         for item in item_set_a.iter().cloned() {
             root_a = root_a.insert(item);

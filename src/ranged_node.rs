@@ -1,16 +1,11 @@
 use std::rc::Rc;
 
-use crate::{
-    range::{Rangable, Range},
-    tree::ChildId,
-    LiftingMonoid, Node,
-};
+use crate::{monoid::Monoid, range::Range, tree::ChildId, Node};
 
 #[derive(Debug, Clone)]
 pub struct RangedRcNode<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     node: &'a Rc<Node<M>>,
     range: Range<M::Item>,
@@ -18,8 +13,7 @@ where
 
 impl<'a, M> RangedRcNode<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     pub fn new(node: &'a Rc<Node<M>>, range: Range<M::Item>) -> Self {
         Self { node, range }
@@ -48,8 +42,7 @@ where
 
 impl<'a, M> From<RangedRcNode<'a, M>> for RangedNode<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     fn from(value: RangedRcNode<'a, M>) -> Self {
         let RangedRcNode { node, range } = value;
@@ -60,8 +53,7 @@ where
 #[derive(Clone, Debug)]
 pub struct RangedNode<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     node: &'a Node<M>,
     range: Range<M::Item>,
@@ -69,8 +61,7 @@ where
 
 impl<'a, M> RangedNode<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     pub fn new(node: &'a Node<M>, range: Range<M::Item>) -> Self {
         RangedNode { node, range }
@@ -84,14 +75,20 @@ where
         &self.range
     }
 
-    pub fn children(&self) -> Children<'a, M> {
-        Children {
+    pub fn rc_children(&self) -> RcChildren<'a, M> {
+        RcChildren {
             child_id: ChildId::Normal(0),
             node: self.clone(),
         }
     }
 
-    pub fn last_child(&self) -> RangedRcNode<'a, M> {
+    pub fn children(&self) -> Children<'a, M> {
+        Children {
+            iter: self.rc_children(),
+        }
+    }
+
+    pub fn rc_last_child(&self) -> RangedRcNode<'a, M> {
         let Range(_, to) = &self.range;
         match &self.node {
             Node::Node2(_) | Node::Node3(_) => RangedRcNode {
@@ -100,6 +97,10 @@ where
             },
             Node::Nil(_) => panic!("nil node doesn't have last child"),
         }
+    }
+
+    pub fn last_child(&self) -> RangedNode<'a, M> {
+        self.rc_last_child().ranged_node()
     }
 
     pub fn get_child(&self, child_id: ChildId) -> Option<RangedRcNode<'a, M>> {
@@ -151,19 +152,31 @@ where
     }
 }
 
-pub struct Children<'a, M>
+pub struct Children<'a, M: Monoid> {
+    iter: RcChildren<'a, M>,
+}
+
+impl<'a, M: Monoid> Iterator for Children<'a, M> {
+    type Item = (RangedNode<'a, M>, M::Item);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|(rc_node, item)| (rc_node.ranged_node(), item))
+    }
+}
+
+pub struct RcChildren<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     child_id: ChildId,
     node: RangedNode<'a, M>,
 }
 
-impl<'a, M> Iterator for Children<'a, M>
+impl<'a, M> Iterator for RcChildren<'a, M>
 where
-    M: LiftingMonoid,
-    M::Item: Rangable,
+    M: Monoid,
 {
     type Item = (RangedRcNode<'a, M>, M::Item);
 

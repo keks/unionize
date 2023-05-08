@@ -1,15 +1,19 @@
-use crate::LiftingMonoid;
+use super::{Item, Monoid};
 
-use super::FormattingMonoid;
-
-pub trait SumItem: Clone + std::fmt::Debug + Eq + Ord + std::ops::Add<Output = Self> {
+pub trait SumItem: Item + std::ops::Add<Output = Self> {
     fn zero() -> Self;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SumMonoid<T: SumItem>(pub T);
 
-impl<T: SumItem> LiftingMonoid for SumMonoid<T> {
+impl<T: SumItem> SumMonoid<T> {
+    pub fn sum(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T: SumItem> Monoid for SumMonoid<T> {
     type Item = T;
 
     fn neutral() -> Self {
@@ -23,18 +27,5 @@ impl<T: SumItem> LiftingMonoid for SumMonoid<T> {
     fn combine(&self, other: &Self) -> Self {
         let (SumMonoid(lhs), SumMonoid(rhs)) = (self, other);
         SumMonoid(lhs.clone() + rhs.clone())
-    }
-}
-
-impl<T: SumItem> SumMonoid<T> {
-    pub fn sum(&self) -> &T {
-        let SumMonoid(sum) = self;
-        sum
-    }
-}
-
-impl<T: SumItem> FormattingMonoid for SumMonoid<T> {
-    fn item_to_string(item: &Self::Item) -> String {
-        format!("{item:?}")
     }
 }

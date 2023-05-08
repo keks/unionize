@@ -1,17 +1,17 @@
 use crate::{
-    LiftingMonoid,
-    tree::{Node, NodeData}
+    monoid::Monoid,
+    tree::{Node, NodeData},
 };
 
 use std::rc::Rc;
-  
-enum InsertUpstreamData<M: LiftingMonoid> {
+
+enum InsertUpstreamData<M: Monoid> {
     Update2Child(NodeData<M, 1>),
     Update3Child(NodeData<M, 2>),
     Split(M::Item, NodeData<M, 1>, NodeData<M, 1>),
 }
 
-impl<M: LiftingMonoid> Node<M> {
+impl<M: Monoid> Node<M> {
     pub fn insert(&self, item: M::Item) -> Node<M> {
         // if the tree is empty, replace it with a 2-node
         if let Node::Nil(_) = self {
@@ -91,5 +91,3 @@ impl<M: LiftingMonoid> Node<M> {
         }
     }
 }
-
-

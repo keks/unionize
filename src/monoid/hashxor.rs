@@ -1,21 +1,27 @@
+use std::io::Write;
 use std::marker::PhantomData;
 
 use sha2::{Digest, Sha256};
 
-use crate::{proto::ProtocolMonoid, LiftingMonoid};
-use std::io::Write;
-
-use super::FormattingMonoid;
+use crate::{
+    monoid::{Item, Monoid},
+    proto::ProtocolMonoid,
+};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
-pub struct HashXorSha256<T>(usize, [u8; 32], PhantomData<T>)
-where
-    T: Eq + core::fmt::Debug + Clone + PartialOrd + Ord;
+pub struct CountingSha256Xor<T: Item>(usize, [u8; 32], PhantomData<T>);
 
-impl<T> LiftingMonoid for HashXorSha256<T>
+impl<T: Item> ProtocolMonoid for CountingSha256Xor<T>
 where
     T: Eq + core::fmt::Debug + Clone + PartialOrd + Ord,
 {
+    fn count(&self) -> usize {
+        let Self(count, _, _) = self;
+        *count
+    }
+}
+
+impl<T: Item> Monoid for CountingSha256Xor<T> {
     type Item = T;
 
     fn neutral() -> Self {
@@ -39,24 +45,5 @@ where
         }
 
         Self(left_count + right_count, out, PhantomData)
-    }
-}
-
-impl<T> FormattingMonoid for HashXorSha256<T>
-where
-    T: Eq + core::fmt::Debug + Clone + PartialOrd + Ord,
-{
-    fn item_to_string(item: &Self::Item) -> String {
-        format!("{item:?}")
-    }
-}
-
-impl<T> ProtocolMonoid for HashXorSha256<T>
-where
-    T: Eq + core::fmt::Debug + Clone + PartialOrd + Ord,
-{
-    fn count(&self) -> usize {
-        let Self(count, _, _) = self;
-        *count
     }
 }

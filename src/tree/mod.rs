@@ -1,21 +1,21 @@
-use crate::LiftingMonoid;
+use crate::monoid::Monoid;
 use std::rc::Rc;
 
 mod fmt;
 mod insert;
 
 #[derive(Clone, Debug)]
-pub struct Tree<M: LiftingMonoid>(Rc<Node<M>>);
+pub struct Tree<M: Monoid>(Rc<Node<M>>);
 
-#[derive(Clone, Debug)]
-pub enum Node<M: LiftingMonoid> {
+#[derive(Clone)]
+pub enum Node<M: Monoid> {
     Node2(NodeData<M, 1>),
     Node3(NodeData<M, 2>),
     Nil(M),
 }
 
 #[derive(Clone, Debug)]
-pub struct NodeData<M: LiftingMonoid, const N: usize> {
+pub struct NodeData<M: Monoid, const N: usize> {
     items: [M::Item; N],
     children: [Rc<Node<M>>; N],
     last_child: Rc<Node<M>>,
@@ -28,7 +28,7 @@ pub enum ChildId {
     Last,
 }
 
-impl<M: LiftingMonoid, const N: usize> NodeData<M, N> {
+impl<M: Monoid, const N: usize> NodeData<M, N> {
     pub fn new(items: [M::Item; N], children: [Rc<Node<M>>; N], last_child: Rc<Node<M>>) -> Self {
         let total = Self::compute_total(&items, &children, &last_child);
 
@@ -181,7 +181,7 @@ impl<M: LiftingMonoid, const N: usize> NodeData<M, N> {
     }
 }
 
-impl<M: LiftingMonoid> NodeData<M, 1> {
+impl<M: Monoid> NodeData<M, 1> {
     pub fn merge(
         &self,
         child_id: ChildId,
@@ -210,7 +210,7 @@ impl<M: LiftingMonoid> NodeData<M, 1> {
     }
 }
 
-impl<M: LiftingMonoid> NodeData<M, 2> {
+impl<M: Monoid> NodeData<M, 2> {
     pub fn merge(
         &self,
         child_id: ChildId,
@@ -245,7 +245,7 @@ impl<M: LiftingMonoid> NodeData<M, 2> {
     }
 }
 
-impl<M: LiftingMonoid> NodeData<M, 3> {
+impl<M: Monoid> NodeData<M, 3> {
     pub fn split(&self) -> (M::Item, NodeData<M, 1>, NodeData<M, 1>) {
         let left_items: &[M::Item; 1] = self.items[0..1].try_into().unwrap();
         let right_items: &[M::Item; 1] = self.items[2..3].try_into().unwrap();
@@ -290,7 +290,7 @@ macro_rules! impl_NodeData_on_Node {
     };
 }
 
-impl<M: LiftingMonoid> Node<M> {
+impl<M: Monoid> Node<M> {
     pub fn nil() -> Self {
         Self::Nil(M::neutral())
     }
