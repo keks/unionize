@@ -1,0 +1,17 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc e31c83e985f10c6795222ef920bfdc558d750df7b79155eeca5ff6c7d68ecda7 # shrinks to items = [1, 195], from = 195, to = 2
+cc 7ea780404f1c3fa61ad864375fd15600724bd535015ee4c091c3e507b464423f # shrinks to items = [1, 231], from = 231, to = 2
+cc c99153095be8b2cbace49c73f8879c01b091f4d69774552af3edb0e44d8b8fb8 # shrinks to items = [1, 463], from = 463, to = 2
+cc de556929d0b92d6d1a4a758983ae837113ce5033e5bd8f6c66fa1760ab549406 # shrinks to items = [1, 199], from = 199, to = 2
+cc db59eaad96cab9042ecb2caee6c3e16b8a79f9a20e1edced73fa32269d4e20de # shrinks to items = [737, 1], from = 737, to = 2
+cc 9e4246bc4a3fe3627455f7d404f7a2845efc8418f3862a8b67b629d9a1c23399 # shrinks to items = [1, 44], from = 44, to = 2
+cc 96fc1954f0a9d9ff26c8b2fee1fc10a412e86c6011d227d477fa038f6f168dc1 # shrinks to items = [22, 510, 23], from = 23, to = 22
+cc 12b8d35eeefae06d907bdec26b0951552fb936d81ba0a3c69c16a3ffb1f36567 # shrinks to items = [857, 1, 2], from = 859, to = 2
+cc a2af16bf73b725efcbdd1171178904fbe5b905d559b3e2a0832e8f08aeb6d8b1 # shrinks to items = [1, 2, 513], from = 515, to = 2
+cc 686654ebd70ebf0c9d0803c88df6e7faf8ffbc4b4c695dc1eb5fdd83b143d3b3 # shrinks to items = [1, 2, 166], from = 168, to = 2
+cc 4ee075b5070d0b9805de35918b65fb8e52546f23729b4af9aa7af575ee691ec1 # shrinks to items = [902, 1, 2], from = 904, to = 2

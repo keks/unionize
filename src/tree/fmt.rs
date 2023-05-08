@@ -1,9 +1,6 @@
 use crate::{monoid::Monoid, tree::ChildId, Node};
 
-impl<M: Monoid> std::fmt::Debug for Node<M>
-where
-    M::Item: std::fmt::Debug,
-{
+impl<M: Monoid> std::fmt::Debug for Node<M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tree = self.debug_tree();
         let style = sise::SerializerStyle {
@@ -80,10 +77,8 @@ where
         }
     }
 }
-impl<M: Monoid> Node<M>
-where
-    M::Item: std::fmt::Debug,
-{
+
+impl<M: Monoid> Node<M> {
     fn debug_tree(&self) -> sise::TreeNode {
         match self {
             Node::Node2(node_data) => sise::TreeNode::List(vec![
@@ -122,18 +117,3 @@ where
         }
     }
 }
-
-// impl<M: FormattingMonoid> std::fmt::Display for Node<M> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let style = sise::SerializerStyle {
-//             line_break: "\n",
-//             indentation: "  ",
-//         };
-//
-//         let mut out = String::new();
-//         let mut serializer = sise::Serializer::new(style, &mut out);
-//         sise::serialize_tree(&mut serializer, &self.clone().into(), 48);
-//
-//         write!(f, "{out}")
-//     }
-// }

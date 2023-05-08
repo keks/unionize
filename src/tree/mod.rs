@@ -14,6 +14,24 @@ pub enum Node<M: Monoid> {
     Nil(M),
 }
 
+impl<M: Monoid> Node<M> {
+    pub fn nil() -> Self {
+        Self::Nil(M::neutral())
+    }
+
+    pub fn is_nil(&self) -> bool {
+        matches!(self, Self::Nil(..))
+    }
+
+    pub fn monoid(&self) -> &M {
+        match self {
+            Node::Node2(node_data) => &node_data.total,
+            Node::Node3(node_data) => &node_data.total,
+            Node::Nil(m) => m,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct NodeData<M: Monoid, const N: usize> {
     items: [M::Item; N],
@@ -291,17 +309,6 @@ macro_rules! impl_NodeData_on_Node {
 }
 
 impl<M: Monoid> Node<M> {
-    pub fn nil() -> Self {
-        Self::Nil(M::neutral())
-    }
-    pub fn monoid(&self) -> &M {
-        match self {
-            Node::Node2(node_data) => &node_data.total,
-            Node::Node3(node_data) => &node_data.total,
-            Node::Nil(m) => m,
-        }
-    }
-
     impl_NodeData_on_Node!(child_by_child_id . id: ChildId => Option<Rc<Node<M>>>);
     impl_NodeData_on_Node!(carries_item . item: &M::Item => bool);
     impl_NodeData_on_Node!(next_item . item: &M::Item => Option<M::Item>);
@@ -329,12 +336,5 @@ impl<M: Monoid> Node<M> {
             Node::Nil(_) => None,
         }
     }
-
-    /// Returns `true` if the node is [`Nil`].
-    ///
-    /// [`Nil`]: Node::Nil
-    #[must_use]
-    pub fn is_nil(&self) -> bool {
-        matches!(self, Self::Nil(..))
-    }
 }
+
