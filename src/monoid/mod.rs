@@ -2,7 +2,7 @@ pub mod count;
 pub mod hashxor;
 pub mod sum;
 
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 pub trait Monoid: Clone + Debug + Eq {
     type Item: Item;
@@ -12,12 +12,4 @@ pub trait Monoid: Clone + Debug + Eq {
     fn combine(&self, other: &Self) -> Self;
 }
 
-pub trait FormatMonoid: Monoid
-where
-    Self::Item: DisplayItem,
-{
-}
-
-pub trait Item: Clone + Ord + Debug {}
-
-pub trait DisplayItem: Item + Display {}
+pub trait Item: Clone + Debug + Ord {}

@@ -1,6 +1,7 @@
 use crate::monoid::Item;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Range<T: Item>(pub(crate) T, pub(crate) T);
 
 impl<T: Item + Copy> Copy for Range<T> {}

@@ -5,19 +5,19 @@ pub trait SumItem: Item + std::ops::Add<Output = Self> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SumMonoid<T: SumItem>(pub T);
+pub struct SumMonoid<I: SumItem>(pub I);
 
-impl<T: SumItem> SumMonoid<T> {
-    pub fn sum(&self) -> &T {
+impl<I: SumItem> SumMonoid<I> {
+    pub fn sum(&self) -> &I {
         &self.0
     }
 }
 
-impl<T: SumItem> Monoid for SumMonoid<T> {
-    type Item = T;
+impl<I: SumItem> Monoid for SumMonoid<I> {
+    type Item = I;
 
     fn neutral() -> Self {
-        SumMonoid(T::zero())
+        SumMonoid(I::zero())
     }
 
     fn lift(item: &Self::Item) -> Self {

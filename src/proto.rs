@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     monoid::{Item, Monoid},
     query::{items::ItemsAccumulator, split::SplitAccumulator},
@@ -5,25 +7,30 @@ use crate::{
     ranged_node::RangedNode,
 };
 
-pub trait ProtocolMonoid: Monoid {
+impl Item for u64 {}
+
+pub trait ProtocolMonoid: Monoid<Item = Self::ProtocolItem> {
+    // we can't further constrain the existing associated type,
+    // so we have to make a new stricter one and constrain the
+    // original monoid to have the same item type.
+    type ProtocolItem: Item + Serialize;
+
     fn count(&self) -> usize;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessagePart<M: ProtocolMonoid> {
     Fingerprint(M),
+    #[serde(bound(deserialize = "M::Item: Deserialize<'de>"))]
     ItemSet(Vec<M::Item>, bool),
 }
 
-#[derive(Debug, Clone)]
-pub struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>)
-where
-    M::Item: Item;
+#[derive(Debug, Clone, Serialize)]
+pub struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>);
 
 impl<M> Message<M>
 where
     M: ProtocolMonoid,
-    M::Item: Item,
 {
     pub fn is_end(&self) -> bool {
         self.0.is_empty()
@@ -33,7 +40,6 @@ where
 pub fn first_message<M>(root: &RangedNode<M>) -> Message<M>
 where
     M: ProtocolMonoid,
-    M::Item: Item,
 {
     Message(vec![
         (
@@ -49,10 +55,7 @@ pub fn respond_to_message<M: ProtocolMonoid>(
     msg: &Message<M>,
     threshold: usize,
     split: fn(usize) -> Vec<usize>,
-) -> (Message<M>, Vec<M::Item>)
-where
-    M::Item: Item,
-{
+) -> (Message<M>, Vec<M::Item>) {
     let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
     let mut new_items = vec![];
 

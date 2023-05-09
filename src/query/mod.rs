@@ -145,7 +145,7 @@ where
 pub mod test {
     use crate::{
         monoid::sum::{SumItem, SumMonoid},
-        monoid::{count::CountingMonoid, Item, Monoid},
+        monoid::{count::CountingMonoid, Monoid},
         proto::ProtocolMonoid,
         query::{items::ItemsAccumulator, SplitAccumulator},
         range::Range,
@@ -155,64 +155,7 @@ pub mod test {
     use proptest::{prelude::prop, proptest};
     use std::collections::HashSet;
 
-    #[derive(Clone, PartialEq, Eq)]
-    pub struct TestMonoid<T>(CountingMonoid<T>, SumMonoid<T>)
-    where
-        T: Item + Clone + SumItem;
-
-    impl<T> TestMonoid<T>
-    where
-        T: Item + Clone + SumItem + std::fmt::Debug,
-    {
-        fn sum(&self) -> &T {
-            let TestMonoid(_, sum_monoid) = self;
-            sum_monoid.sum()
-        }
-    }
-
-    impl<T> std::fmt::Debug for TestMonoid<T>
-    where
-        T: Item + Clone + std::fmt::Display + SumItem,
-    {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let count = self.count();
-            let sum = self.sum();
-            write!(f, "T(C:{count} S:{sum})")
-        }
-    }
-
-    impl<T> Monoid for TestMonoid<T>
-    where
-        T: Item + Clone + std::fmt::Display + SumItem,
-    {
-        type Item = T;
-
-        fn neutral() -> Self {
-            Self(CountingMonoid::neutral(), SumMonoid::neutral())
-        }
-
-        fn lift(item: &Self::Item) -> Self {
-            Self(CountingMonoid::lift(item), SumMonoid::lift(item))
-        }
-
-        fn combine(&self, other: &Self) -> Self {
-            let Self(other_count, other_sum) = other;
-            let Self(self_count, self_sum) = self;
-            Self(self_count.combine(other_count), self_sum.combine(other_sum))
-        }
-    }
-
-    impl<T> ProtocolMonoid for TestMonoid<T>
-    where
-        T: Item + Clone + std::fmt::Display + SumItem,
-    {
-        fn count(&self) -> usize {
-            let TestMonoid(counting_monoid, _) = self;
-            counting_monoid.count()
-        }
-    }
-
-    impl Item for u64 {}
+    pub type TestMonoid<T> = CountingMonoid<SumMonoid<T>>;
 
     impl SumItem for u64 {
         fn zero() -> u64 {
