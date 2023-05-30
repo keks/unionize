@@ -1,6 +1,7 @@
 pub mod proto;
 pub mod range;
 
+pub mod hash_item;
 pub mod monoid;
 pub mod query;
 mod tree;

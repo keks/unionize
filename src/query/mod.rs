@@ -64,16 +64,26 @@ where
             return;
         }
 
-        if self.range().is_subrange_of(query_range) {
-            state.add_node(&self);
-            return;
-        }
-
         if query_range.from() == query_range.to() {
-            // querying full range, node is completely in range
-            state.add_node(&self);
+            // querying full range, node is completely in range,
+            // but start at the boundary item, wrap around, and then end at the boundary item.
+
+            // first add items and children after the boundary
+            if let Some(new_query_range) = query_range.cap_right(self.range().to().clone()) {
+                self.query_range_generic(&new_query_range, state);
+            }
+
+            // then add items and children before the boundary
+            if let Some(new_query_range) = query_range.cap_left(self.range().from().clone()) {
+                self.query_range_generic(&new_query_range, state);
+            }
+
             return;
         } else if query_range.from() < query_range.to() {
+            if self.range().is_subrange_of(query_range) {
+                state.add_node(&self);
+                return;
+            }
             // this is a non-wrapping query
             for (child, ref item) in self.children() {
                 child.query_range_generic(query_range, state);
@@ -84,6 +94,10 @@ where
 
             self.last_child().query_range_generic(query_range, state);
         } else {
+            if self.range().is_subrange_of(query_range) {
+                state.add_node(&self);
+                return;
+            }
             // we have a wrapping query
 
             for (child, ref item) in self.children() {

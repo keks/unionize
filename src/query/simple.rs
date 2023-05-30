@@ -33,3 +33,41 @@ impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
         self.0 = self.0.combine(&M::lift(&item));
     }
 }
+#[cfg(test)]
+
+mod test {
+    use super::*;
+    use crate::query::test::TestMonoid;
+    use crate::tree::Node;
+    use crate::{monoid::Monoid, range::Range};
+    use proptest::{prelude::*, prop_assert_eq, proptest};
+    use std::collections::HashSet;
+
+    proptest! {
+        #[test]
+        fn simple_correctness(items in prop::collection::vec(1..1000u64, 1..100usize), from in 0..1000u64, to in 0..1000u64) {
+            println!();
+            let item_set: HashSet<u64> = HashSet::from_iter(items.iter().cloned());
+            let query_range = Range(from, to);
+            println!("items used in test: {:?}", item_set);
+            println!("query range: {:?}", query_range);
+
+            let mut root = Node::<TestMonoid<u64>>::Nil(TestMonoid::lift(&0));
+
+            for item in &item_set {
+                root = root.insert(*item);
+            }
+            println!("in tree form: {:}", root);
+
+            let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
+            let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
+
+            let ranged_root = RangedNode::new(&root, Range(min, max+1));
+            let query_result = ranged_root.query_range(&query_range);
+            let mut acc = SimpleAccumulator::new();
+            ranged_root.query_range_generic(&query_range, &mut acc);
+
+            prop_assert_eq!(&query_result, acc.result());
+        }
+    }
+}

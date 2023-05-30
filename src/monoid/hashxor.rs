@@ -2,26 +2,49 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::marker::PhantomData;
 
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::{
     monoid::{Item, Monoid},
-    proto::ProtocolMonoid,
+    proto::{Encodable, ProtocolMonoid},
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CountingSha256Xor<I: Item>(usize, [u8; 32], PhantomData<I>);
 
-impl<I: Item + Serialize> ProtocolMonoid for CountingSha256Xor<I>
+impl<I: Item> ProtocolMonoid for CountingSha256Xor<I>
 where
-    I: Clone + Debug + PartialOrd + Ord,
+    I: Clone + Debug + Ord,
 {
     type ProtocolItem = I;
 
     fn count(&self) -> usize {
         let Self(count, _, _) = self;
         *count
+    }
+}
+
+impl<I: Item> Default for CountingSha256Xor<I> {
+    fn default() -> Self {
+        CountingSha256Xor(0, [0u8; 32], PhantomData)
+    }
+}
+
+impl<I: Item> Encodable for CountingSha256Xor<I>
+where
+    I: Clone + Debug + PartialOrd + Ord,
+{
+    type Encoded = Self;
+    type Error = ();
+
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error> {
+        *encoded = self.clone();
+        Ok(())
+    }
+
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error> {
+        *self = encoded.clone();
+        Ok(())
     }
 }
 

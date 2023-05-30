@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use crate::{
     monoid::{Item, Monoid},
     query::{items::ItemsAccumulator, split::SplitAccumulator},
@@ -9,24 +7,43 @@ use crate::{
 
 impl Item for u64 {}
 
-pub trait ProtocolMonoid: Monoid<Item = Self::ProtocolItem> {
+pub trait ProtocolMonoid: Monoid<Item = Self::ProtocolItem> + Encodable {
     // we can't further constrain the existing associated type,
     // so we have to make a new stricter one and constrain the
     // original monoid to have the same item type.
-    type ProtocolItem: Item + Serialize;
+    type ProtocolItem: Item;
 
     fn count(&self) -> usize;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+pub trait Encodable: Default {
+    type Encoded: Clone + core::fmt::Debug + Eq + Default;
+    type Error;
+
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error>;
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error>;
+
+    fn to_encoded(&self) -> Result<Self::Encoded, Self::Error> {
+        let mut encoded = Self::Encoded::default();
+        self.encode(&mut encoded)?;
+        Ok(encoded)
+    }
+
+    fn from_encoded(encoded: &Self::Encoded) -> Result<Self, Self::Error> {
+        let mut decoded = Self::default();
+        decoded.decode(encoded)?;
+        Ok(decoded)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum MessagePart<M: ProtocolMonoid> {
-    Fingerprint(M),
-    #[serde(bound(deserialize = "M::Item: Deserialize<'de>"))]
+    Fingerprint(M::Encoded),
     ItemSet(Vec<M::Item>, bool),
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct Message<M: ProtocolMonoid>(Vec<(Range<M::Item>, MessagePart<M>)>);
+#[derive(Debug, Clone)]
+pub struct Message<M: ProtocolMonoid + Encodable>(Vec<(Range<M::Item>, MessagePart<M>)>);
 
 impl<M> Message<M>
 where
@@ -37,17 +54,17 @@ where
     }
 }
 
-pub fn first_message<M>(root: &RangedNode<M>) -> Message<M>
+pub fn first_message<M>(root: &RangedNode<M>) -> Result<Message<M>, M::Error>
 where
     M: ProtocolMonoid,
 {
-    Message(vec![
+    Ok(Message(vec![
         (
             root.range().clone(),
-            MessagePart::Fingerprint(root.node().monoid().clone()),
+            MessagePart::Fingerprint(root.node().monoid().to_encoded()?),
         ),
         (root.range().reverse(), MessagePart::ItemSet(vec![], true)),
-    ])
+    ]))
 }
 
 pub fn respond_to_message<M: ProtocolMonoid>(
@@ -55,15 +72,16 @@ pub fn respond_to_message<M: ProtocolMonoid>(
     msg: &Message<M>,
     threshold: usize,
     split: fn(usize) -> Vec<usize>,
-) -> (Message<M>, Vec<M::Item>) {
+) -> Result<(Message<M>, Vec<M::Item>), M::Error> {
     let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
     let mut new_items = vec![];
 
     for (range, part) in &msg.0 {
         match part {
             MessagePart::Fingerprint(their_fp) => {
+                let their_fp = M::from_encoded(their_fp)?;
                 let my_fp = root.query_range(range);
-                if &my_fp != their_fp {
+                if my_fp != their_fp {
                     if my_fp.count() < threshold {
                         let mut acc = ItemsAccumulator::new();
                         root.query_range_generic(range, &mut acc);
@@ -89,10 +107,20 @@ pub fn respond_to_message<M: ProtocolMonoid>(
                                 MessagePart::ItemSet(acc.into_results(), true),
                             ));
                         } else {
-                            response_parts
-                                .push((sub_range.clone(), MessagePart::Fingerprint(fp.clone())));
+                            response_parts.push((
+                                sub_range.clone(),
+                                MessagePart::Fingerprint(fp.to_encoded()?),
+                            ));
+
+                            if fp.count() == threshold {
+                                let mut acc = ItemsAccumulator::new();
+                                root.query_range_generic(sub_range, &mut acc);
+                            }
                         }
                     }
+                } else {
+                    let mut acc = ItemsAccumulator::new();
+                    root.query_range_generic(range, &mut acc);
                 }
             }
             MessagePart::ItemSet(items, want_response) => {
@@ -109,14 +137,186 @@ pub fn respond_to_message<M: ProtocolMonoid>(
         }
     }
 
-    (Message(response_parts), new_items)
+    Ok((Message(response_parts), new_items))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{monoid::hashxor::CountingSha256Xor, range::Range, ranged_node::RangedNode, Node};
+    use crate::{
+        hash_item::LEByteArray,
+        monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
+        range::Range,
+        ranged_node::RangedNode,
+        Node,
+    };
     use proptest::{prelude::prop, prop_assert, proptest};
-    use std::collections::HashSet;
+    use std::{
+        collections::{BTreeSet, HashSet},
+        io::Write,
+    };
+
+    use rand::prelude::*;
+    use rand_chacha::ChaCha8Rng;
+
+    #[test]
+    fn sync_10k_msgs() {
+        let mut shared_msgs = vec![LEByteArray::<30>::default(); 60_00];
+        let mut alices_msgs = vec![LEByteArray::<30>::default(); 20_00];
+        let mut bobs_msgs = vec![LEByteArray::<30>::default(); 20_00];
+
+        let split = |n| {
+            let snd = n / 2;
+            let fst = n - snd;
+
+            vec![fst, snd]
+        };
+
+        let mut alice_tree: Node<CountingMonoid<MulHashMonoid<xs233::xsk233::Xsk233Point>>> =
+            Node::nil();
+        let mut bob_tree: Node<CountingMonoid<MulHashMonoid<xs233::xsk233::Xsk233Point>>> =
+            Node::nil();
+
+        print!("generating and adding items... ");
+        std::io::stdout().flush().unwrap();
+        let mut rng = ChaCha8Rng::from_seed([23u8; 32]);
+        for msg in &mut shared_msgs {
+            rng.fill(&mut msg.0);
+            alice_tree = alice_tree.insert(msg.clone());
+            bob_tree = bob_tree.insert(msg.clone());
+        }
+        for msg in &mut alices_msgs {
+            rng.fill(&mut msg.0);
+            alice_tree = alice_tree.insert(msg.clone());
+        }
+        for msg in &mut bobs_msgs {
+            rng.fill(&mut msg.0);
+            bob_tree = bob_tree.insert(msg.clone());
+        }
+        println!("done.");
+        println!("shared messages: {shared_msgs:?}\n");
+        println!("alices messages: {alices_msgs:?}\n");
+        println!("bobs messages: {bobs_msgs:?}\n");
+        println!("alices tree: {alice_tree:?}");
+        std::io::stdout().flush().unwrap();
+
+        let min_alice = alices_msgs
+            .iter()
+            .fold(LEByteArray([255u8; 30]), |acc, cur| acc.min(cur.clone()));
+        let mut max_alice = alices_msgs
+            .iter()
+            .fold(LEByteArray([0u8; 30]), |acc, cur| acc.max(cur.clone()));
+        let min_bob = bobs_msgs
+            .iter()
+            .fold(LEByteArray([255u8; 30]), |acc, cur| acc.min(cur.clone()));
+        let mut max_bob = bobs_msgs
+            .iter()
+            .fold(LEByteArray([0u8; 30]), |acc, cur| acc.max(cur.clone()));
+
+        for i in 0..30 {
+            if max_bob.0[i] == 255 {
+                max_bob.0[i] = 0;
+            } else {
+                max_bob.0[i] += 1;
+                break;
+            }
+        }
+
+        for i in 0..30 {
+            if max_alice.0[i] == 255 {
+                max_alice.0[i] = 0;
+            } else {
+                max_alice.0[i] += 1;
+                break;
+            }
+        }
+
+        let ranged_root_alice = RangedNode::new(&alice_tree, Range(min_alice, max_alice));
+        let ranged_root_bob = RangedNode::new(&bob_tree, Range(min_bob, max_bob));
+
+        let mut msg = super::first_message(&ranged_root_alice).unwrap();
+
+        let mut missing_items_alice = vec![];
+        let mut missing_items_bob = vec![];
+
+        loop {
+            println!("alice msg: {msg:?}");
+            if msg.is_end() {
+                break;
+            }
+
+            let (resp, new_items) =
+                super::respond_to_message(&ranged_root_bob, &msg, 3, split).unwrap();
+            missing_items_bob.extend(new_items.into_iter());
+
+            println!("bob msg:   {resp:?}");
+            if resp.is_end() {
+                break;
+            }
+
+            let (resp, new_items) =
+                super::respond_to_message(&ranged_root_alice, &resp, 3, split).unwrap();
+            missing_items_alice.extend(new_items.into_iter());
+
+            msg = resp;
+        }
+
+        let mut all_items: BTreeSet<LEByteArray<30>> =
+            BTreeSet::from_iter(shared_msgs.iter().cloned());
+        all_items.extend(alices_msgs.iter());
+        all_items.extend(bobs_msgs.iter());
+
+        let mut all_items_alice: BTreeSet<LEByteArray<30>> =
+            BTreeSet::from_iter(shared_msgs.iter().cloned());
+        all_items_alice.extend(alices_msgs.iter());
+
+        let mut all_items_bob: BTreeSet<LEByteArray<30>> =
+            BTreeSet::from_iter(shared_msgs.iter().cloned());
+        all_items_bob.extend(bobs_msgs.iter());
+
+        all_items_alice.extend(missing_items_alice.iter());
+        all_items_bob.extend(missing_items_bob.iter());
+
+        let bob_lacks: Vec<_> = all_items.difference(&all_items_bob).collect();
+        println!("bob lacks {} messages: {bob_lacks:?}", bob_lacks.len());
+        let bob_superfluous: Vec<_> = all_items_bob.difference(&all_items).collect();
+        println!("bob has too many: {bob_superfluous:?}");
+
+        let all_len = all_items.len();
+        let alice_all_len = all_items_alice.len();
+        let bob_all_len = all_items_bob.len();
+
+        println!("lens: all:{all_len} alice:{alice_all_len}, bob:{bob_all_len}");
+        assert_eq!(all_len, alice_all_len);
+        assert_eq!(all_len, bob_all_len);
+
+        let mut all: Vec<_> = Vec::from_iter(all_items.iter().cloned());
+        let mut alice_all: Vec<_> = Vec::from_iter(all_items_alice.iter().cloned());
+        let mut bob_all: Vec<_> = Vec::from_iter(all_items_bob.iter().cloned());
+
+        alice_all.sort();
+        bob_all.sort();
+        all.sort();
+
+        println!("\n  all vec: {all:?}");
+        println!(
+            "\na all vec: {alice_all:?}, {:} {:}",
+            alice_all == all,
+            all == alice_all
+        );
+        println!(
+            "\nb all vec: {bob_all:?}, {:} {:}",
+            bob_all == all,
+            all == bob_all
+        );
+        println!();
+
+        let alice_eq = alice_all == all;
+        let bob_eq = bob_all == all;
+
+        println!("{alice_eq}, {bob_eq}");
+        assert!(alice_eq, "a does not match");
+        assert!(bob_eq, "a does not match");
+    }
 
     proptest! {
         #[test]
@@ -155,7 +355,7 @@ mod tests {
             let ranged_root_a = RangedNode::new(&root_a, Range(min_a, max_a+1));
             let ranged_root_b = RangedNode::new(&root_b, Range(min_b, max_b+1));
 
-            let mut msg = super::first_message(&ranged_root_a);
+            let mut msg = super::first_message(&ranged_root_a).unwrap();
 
             let mut missing_items_a = vec![];
             let mut missing_items_b = vec![];
@@ -167,7 +367,7 @@ mod tests {
                 }
 
 
-                let (resp, new_items) = super::respond_to_message(&ranged_root_b, &msg, 3, split);
+                let (resp, new_items) = super::respond_to_message(&ranged_root_b, &msg, 3, split).unwrap();
                 missing_items_b.extend(new_items.into_iter());
 
                 println!("b msg: {resp:?}");
@@ -176,7 +376,7 @@ mod tests {
                 }
 
 
-                let (resp, new_items) = super::respond_to_message(&ranged_root_a, &resp, 3, split);
+                let (resp, new_items) = super::respond_to_message(&ranged_root_a, &resp, 3, split).unwrap();
                 missing_items_a.extend(new_items.into_iter());
 
                 msg = resp;
@@ -282,7 +482,7 @@ mod tests {
         let ranged_root_a = RangedNode::new(&root_a, Range(min_a, max_a + 1));
         let ranged_root_b = RangedNode::new(&root_b, Range(min_b, max_b + 1));
 
-        let mut msg = super::first_message(&ranged_root_a);
+        let mut msg = super::first_message(&ranged_root_a).unwrap();
 
         let mut missing_items_a = vec![];
         let mut missing_items_b = vec![];
@@ -293,7 +493,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&ranged_root_b, &msg, 3, split);
+            let (resp, new_items) =
+                super::respond_to_message(&ranged_root_b, &msg, 3, split).unwrap();
             missing_items_b.extend(new_items.into_iter());
 
             println!("b msg: {resp:?}");
@@ -301,7 +502,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&ranged_root_a, &resp, 3, split);
+            let (resp, new_items) =
+                super::respond_to_message(&ranged_root_a, &resp, 3, split).unwrap();
             missing_items_a.extend(new_items.into_iter());
 
             msg = resp;

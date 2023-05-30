@@ -1,0 +1,17 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 3827f467842541e6a4c65a4af4d65c382e841dcf7c9a616d0b5271089c307314 # shrinks to items = [906, 358, 860, 978, 702, 122, 50, 499, 503, 9, 356, 671, 977, 369, 365, 882, 212, 297, 419, 342, 228, 97, 604, 177, 453, 871, 990, 878, 43, 730, 998, 143, 403, 35, 94, 75, 519, 589, 140, 739, 663, 419, 18, 297, 932, 335, 610, 732, 544, 675, 89, 348, 575, 280, 83, 312, 576, 532, 924, 516, 115, 955, 494, 264, 981, 815, 905, 772, 978, 529, 212, 970, 147, 75, 370, 511, 630, 565, 539], from = 856, to = 145
+cc f919959ebc78371a395bda8daa0717f06622625dc541c0fd94658d98b9b83449 # shrinks to items = [734, 294, 383, 973, 983, 512, 317, 727, 82, 550, 262, 398, 379, 337, 132, 366, 762, 320, 71, 892, 946, 601, 850, 832, 190, 125, 996, 530, 709, 39, 9, 537, 40, 849, 75, 952, 449, 698, 111, 526, 870, 63, 297, 480, 491, 733, 231, 397, 163, 738, 936, 162, 87, 664, 772, 437, 600, 604, 931, 90, 769, 376, 553, 467, 784, 649, 682, 105, 896, 247, 941, 808, 125, 57, 543, 524, 713, 986, 851, 932, 188], from = 261, to = 383
+cc ce7f2afa61c33b25c972947f07ed7482805e362ad9422e3c82f4dba81604834e # shrinks to items = [218, 742, 839, 698, 790, 357, 786, 610, 582, 539, 365, 962, 241, 882, 342, 63, 689, 904, 815, 285, 138, 471, 845, 257, 697, 894, 961, 795, 56, 642, 679, 950, 140, 941, 412, 241, 434, 408, 965, 801, 46, 441, 31, 946, 360, 670, 914, 161, 192, 230, 124, 156, 300, 569, 140, 912, 559, 801, 715, 5, 581, 612, 943, 466, 229, 441, 642, 75, 749, 994, 859, 996, 718, 82, 496, 993, 201, 336], from = 375, to = 797
+cc 5bd95bdf5967fdc121db371b3723b406af35690adec65ce3d54bf47ea5d92b58 # shrinks to items = [539, 1, 1], from = 539, to = 539
+cc d2bb7fefd731075ff814f7c86cea78d2361e5db621422cb0deafdd5a1548513d # shrinks to items = [413, 1, 2], from = 413, to = 413
+cc 9fba1cfa255b2ae3cce6669f2cb6a2b11993bb87c5e82b54d87d6c7bbfdf77d9 # shrinks to items = [304, 1, 305], from = 80, to = 0
+cc 0f3678bdd4ec0155a0ef04a314d5225d3ec5c30e3f9c9a1743cb27cdd42f292d # shrinks to items = [213, 806, 552, 786], from = 125, to = 18
+cc 8743795da1fbd8de72d9829b3b19a5075ab67fa3a859b225ae16530f7de62936 # shrinks to items = [541, 349, 473, 245], from = 427, to = 697
+cc 7ee2900c18fdac3fc3e8b95cc18f812000c07cccf653ed4e8ad02c2835e7093d # shrinks to items = [234, 1, 235], from = 2, to = 236
+cc 29b349b3dc936e02803ae09e52382b0340c8c33c992620fcba6a140411a58fb0 # shrinks to items = [1, 230, 2], from = 230, to = 231
+cc a0ca38fda44f5c6e8d6d54c962150e335dc97de3599f9448b66b9498f8d4857b # shrinks to items = [1, 2, 675], from = 675, to = 675

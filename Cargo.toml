@@ -6,7 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+hex = "0.4.3"
 proptest = "1.1.0"
-serde = { version = "1.0.162", features = ["derive"] }
+rand = "0.8.5"
+rand_chacha = "0.3.1"
 sha2 = "0.10.6"
 sise = "0.8.0"
+xs233 = "0.2"

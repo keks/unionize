@@ -1,6 +1,5 @@
-use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, ranged_node::RangedNode};
-
 use super::Accumulator;
+use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, ranged_node::RangedNode};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>
@@ -38,6 +37,11 @@ where
         while !self.is_done()
             && self.split_sizes[self.current_offset] <= self.results[self.current_offset].count()
         {
+            // the actual result split should never exceed the target split size
+            assert_eq!(
+                self.split_sizes[self.current_offset],
+                self.results[self.current_offset].count()
+            );
             self.current_offset += 1;
             self.update_ranges = true;
         }
@@ -123,15 +127,74 @@ where
         }
 
         let current_result = self.current_result();
-
         *current_result = current_result.combine(&M::lift(item));
-        // let current_count = current_result.count();
-
-        // println!(
-        //     "current_offset:{:} current_count:{current_count}",
-        //     self.current_offset
-        // );
 
         self.advance_bucket();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::monoid::Monoid;
+    use crate::query::{simple::SimpleAccumulator, test::TestMonoid};
+    use crate::tree::Node;
+    use proptest::{prelude::*, prop_assert_eq, prop_assume, proptest};
+    use std::collections::HashSet;
+
+    proptest! {
+        #[test]
+        fn split_correctness(items in prop::collection::vec(1..1000u64, 3..5usize), from in 0..1000u64, to in 0..1000u64) {
+            println!();
+            let item_set: HashSet<u64> = HashSet::from_iter(items.iter().cloned());
+            let query_range = Range(from, to);
+            println!("items used in test: {:?}", item_set);
+            println!("query range: {:?}", query_range);
+
+            // items are unique
+            prop_assume!(item_set.len() == items.len());
+
+            let mut root = Node::<TestMonoid<u64>>::Nil(TestMonoid::lift(&0));
+
+            for item in &item_set {
+                root = root.insert(*item);
+            }
+            println!("in tree form: {:}", root);
+
+            let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
+            let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
+
+            let ranged_root = RangedNode::new(&root, Range(min, max+1));
+            let query_result = ranged_root.query_range(&query_range);
+
+            // make sure we don't glitch on empty splits
+            prop_assume!(query_result.count() > 1);
+
+            let item_count = query_result.count();
+            let first_bucket_count = item_count/2;
+            let second_bucket_count = item_count - first_bucket_count;
+
+            let split_sizes = &[first_bucket_count, second_bucket_count];
+            let mut acc = SplitAccumulator::new(&query_range, split_sizes);
+            ranged_root.query_range_generic(&query_range, &mut acc);
+
+            // assuming we the splits are >0 (as per the count>1 assumption above), assert that we
+            // don't get ranges of the form x..x due to cutting down the range. x..x means full
+            // range, not empty range, and this would be a problem.
+            prop_assert!(acc.ranges()[0].from() != acc.ranges()[0].to());
+            prop_assert!(acc.ranges()[1].from() != acc.ranges()[1].to());
+
+            let mut simple1 = SimpleAccumulator::new();
+            let mut simple2 = SimpleAccumulator::new();
+
+            ranged_root.query_range_generic(&acc.ranges()[0], &mut simple1);
+            ranged_root.query_range_generic(&acc.ranges()[1], &mut simple2);
+
+            println!("query range: {query_range}");
+            println!("split counts: {split_sizes:?}");
+            println!("splits: {:?}", acc.ranges());
+
+            prop_assert_eq!((simple1.result(),simple2.result()), (&acc.results()[0], &acc.results()[1]));
+        }
     }
 }

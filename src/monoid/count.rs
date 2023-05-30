@@ -1,6 +1,7 @@
-use serde::Serialize;
-
-use crate::{monoid::Monoid, proto::ProtocolMonoid};
+use crate::{
+    monoid::Monoid,
+    proto::{Encodable, ProtocolMonoid},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CountingMonoid<M: Monoid>(usize, M);
@@ -11,14 +12,33 @@ impl<M: Monoid> CountingMonoid<M> {
     }
 }
 
-impl<M: Monoid> ProtocolMonoid for CountingMonoid<M>
-where
-    M::Item: Serialize,
-{
+impl<M: Monoid + Default> Default for CountingMonoid<M> {
+    fn default() -> Self {
+        CountingMonoid(0, M::default())
+    }
+}
+
+impl<M: Monoid + Encodable> ProtocolMonoid for CountingMonoid<M> {
     type ProtocolItem = M::Item;
 
     fn count(&self) -> usize {
         self.0
+    }
+}
+
+impl<M: Monoid + Encodable> Encodable for CountingMonoid<M> {
+    type Encoded = (usize, M::Encoded);
+
+    type Error = M::Error;
+
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error> {
+        encoded.0 = self.0;
+        M::encode(&self.1, &mut encoded.1)
+    }
+
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error> {
+        self.0 = encoded.0;
+        M::decode(&mut self.1, &encoded.1)
     }
 }
 

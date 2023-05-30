@@ -1,3 +1,5 @@
+use crate::proto::Encodable;
+
 use super::{Item, Monoid};
 
 pub trait SumItem: Item + std::ops::Add<Output = Self> {
@@ -13,11 +15,32 @@ impl<I: SumItem> SumMonoid<I> {
     }
 }
 
+impl<I: SumItem> Default for SumMonoid<I> {
+    fn default() -> Self {
+        SumMonoid(<I as SumItem>::zero())
+    }
+}
+
+impl<I: SumItem> Encodable for SumMonoid<I> {
+    type Encoded = Self;
+    type Error = ();
+
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error> {
+        *encoded = self.clone();
+        Ok(())
+    }
+
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error> {
+        *self = encoded.clone();
+        Ok(())
+    }
+}
+
 impl<I: SumItem> Monoid for SumMonoid<I> {
     type Item = I;
 
     fn neutral() -> Self {
-        SumMonoid(I::zero())
+        SumMonoid(<I as SumItem>::zero())
     }
 
     fn lift(item: &Self::Item) -> Self {

@@ -1,6 +1,11 @@
 use std::rc::Rc;
 
-use crate::{monoid::Monoid, range::Range, tree::ChildId, Node};
+use crate::{
+    monoid::{Monoid, Peano},
+    range::Range,
+    tree::ChildId,
+    Node,
+};
 
 #[derive(Debug, Clone)]
 pub struct RangedRcNode<'a, M>
@@ -93,7 +98,7 @@ where
         match &self.node {
             Node::Node2(_) | Node::Node3(_) => RangedRcNode {
                 node: self.node.last_child(),
-                range: Range(self.node.last_item().clone(), to.clone()),
+                range: Range(self.node.last_item().next(), to.clone()),
             },
             Node::Nil(_) => panic!("nil node doesn't have last child"),
         }
@@ -124,20 +129,20 @@ where
                 let child = node_data.children().1;
                 Some(RangedRcNode {
                     node: child,
-                    range: Range(item.clone(), to.clone()),
+                    range: Range(item.next(), to.clone()),
                 })
             }
             (Node::Node3(node_data), ChildId::Normal(offs)) => {
                 let from_item = if offs == 0 {
-                    from
+                    from.clone()
                 } else {
-                    &node_data.items()[offs - 1]
+                    node_data.items()[offs - 1].next()
                 };
                 let to_item = &node_data.items()[offs];
                 let child = &node_data.children().0[offs];
                 Some(RangedRcNode {
                     node: child,
-                    range: Range(from_item.clone(), to_item.clone()),
+                    range: Range(from_item, to_item.clone()),
                 })
             }
             (Node::Node3(node_data), ChildId::Last) => {
@@ -145,7 +150,7 @@ where
                 let child = node_data.children().1;
                 Some(RangedRcNode {
                     node: child,
-                    range: Range(item.clone(), to.clone()),
+                    range: Range(item.next(), to.clone()),
                 })
             }
         }
