@@ -19,8 +19,6 @@ impl<M: Monoid + Default> Default for CountingMonoid<M> {
 }
 
 impl<M: Monoid + Encodable> ProtocolMonoid for CountingMonoid<M> {
-    type ProtocolItem = M::Item;
-
     fn count(&self) -> usize {
         self.0
     }

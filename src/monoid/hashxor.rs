@@ -16,8 +16,6 @@ impl<I: Item> ProtocolMonoid for CountingSha256Xor<I>
 where
     I: Clone + Debug + Ord,
 {
-    type ProtocolItem = I;
-
     fn count(&self) -> usize {
         let Self(count, _, _) = self;
         *count

@@ -7,12 +7,7 @@ use crate::{
 
 impl Item for u64 {}
 
-pub trait ProtocolMonoid: Monoid<Item = Self::ProtocolItem> + Encodable {
-    // we can't further constrain the existing associated type,
-    // so we have to make a new stricter one and constrain the
-    // original monoid to have the same item type.
-    type ProtocolItem: Item;
-
+pub trait ProtocolMonoid: Monoid + Encodable {
     fn count(&self) -> usize;
 }
 
