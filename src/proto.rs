@@ -154,10 +154,10 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     #[test]
-    fn sync_10k_msgs() {
-        let mut shared_msgs = vec![LEByteArray::<30>::default(); 60_00];
-        let mut alices_msgs = vec![LEByteArray::<30>::default(); 20_00];
-        let mut bobs_msgs = vec![LEByteArray::<30>::default(); 20_00];
+    fn sync_100k_msgs() {
+        let mut shared_msgs = vec![LEByteArray::<30>::default(); 60_000];
+        let mut alices_msgs = vec![LEByteArray::<30>::default(); 20_000];
+        let mut bobs_msgs = vec![LEByteArray::<30>::default(); 20_000];
 
         let split = |n| {
             let snd = n / 2;
@@ -170,6 +170,8 @@ mod tests {
             Node::nil();
         let mut bob_tree: Node<CountingMonoid<MulHashMonoid<xs233::xsk233::Xsk233Point>>> =
             Node::nil();
+
+        let gen_start_time = std::time::Instant::now();
 
         print!("generating and adding items... ");
         std::io::stdout().flush().unwrap();
@@ -187,11 +189,11 @@ mod tests {
             rng.fill(&mut msg.0);
             bob_tree = bob_tree.insert(msg.clone());
         }
-        println!("done.");
-        println!("shared messages: {shared_msgs:?}\n");
-        println!("alices messages: {alices_msgs:?}\n");
-        println!("bobs messages: {bobs_msgs:?}\n");
-        println!("alices tree: {alice_tree:?}");
+        println!("done after {:?}.", gen_start_time.elapsed());
+        // println!("shared messages: {shared_msgs:?}\n");
+        // println!("alices messages: {alices_msgs:?}\n");
+        // println!("bobs messages: {bobs_msgs:?}\n");
+        // println!("alices tree: {alice_tree:?}");
         std::io::stdout().flush().unwrap();
 
         let min_alice = alices_msgs
@@ -233,8 +235,13 @@ mod tests {
         let mut missing_items_alice = vec![];
         let mut missing_items_bob = vec![];
 
+        let mut count = 0;
+
+        let loop_start_time = std::time::Instant::now();
         loop {
-            println!("alice msg: {msg:?}");
+            count += 1;
+            // println!("alice msg: {msg:?}");
+            println!("alice msg length: {}", msg.0.len());
             if msg.is_end() {
                 break;
             }
@@ -243,7 +250,8 @@ mod tests {
                 super::respond_to_message(&ranged_root_bob, &msg, 3, split).unwrap();
             missing_items_bob.extend(new_items.into_iter());
 
-            println!("bob msg:   {resp:?}");
+            // println!("bob msg:   {resp:?}");
+            println!("bob msg length:   {}", resp.0.len());
             if resp.is_end() {
                 break;
             }
@@ -254,6 +262,11 @@ mod tests {
 
             msg = resp;
         }
+
+        println!(
+            "protocol took {count} rounds and {:?}.",
+            loop_start_time.elapsed()
+        );
 
         let mut all_items: BTreeSet<LEByteArray<30>> =
             BTreeSet::from_iter(shared_msgs.iter().cloned());
@@ -292,18 +305,18 @@ mod tests {
         bob_all.sort();
         all.sort();
 
-        println!("\n  all vec: {all:?}");
-        println!(
-            "\na all vec: {alice_all:?}, {:} {:}",
-            alice_all == all,
-            all == alice_all
-        );
-        println!(
-            "\nb all vec: {bob_all:?}, {:} {:}",
-            bob_all == all,
-            all == bob_all
-        );
-        println!();
+        // println!("\n  all vec: {all:?}");
+        // println!(
+        //     "\na all vec: {alice_all:?}, {:} {:}",
+        //     alice_all == all,
+        //     all == alice_all
+        // );
+        // println!(
+        //     "\nb all vec: {bob_all:?}, {:} {:}",
+        //     bob_all == all,
+        //     all == bob_all
+        // );
+        // println!();
 
         let alice_eq = alice_all == all;
         let bob_eq = bob_all == all;
