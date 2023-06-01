@@ -12,4 +12,9 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 sha2 = "0.10.6"
 sise = "0.8.0"
-xs233 = "0.2"
+xs233 = "0.3"
+
+[features]
+avx2 = ["xs233/avx2"]
+sse41 = ["xs233/sse41"]
+pclmul = ["xs233/pclmul"]
