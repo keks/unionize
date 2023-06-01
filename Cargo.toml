@@ -1,7 +1,13 @@
 [package]
-name = "recon"
+name = "unionize"
 version = "0.1.0"
 edition = "2021"
+authors = [ "Jan Winkelmann (keks)" ]
+description = "A variant of Range-based Set Reconciliation"
+readme = "README.md"
+repository = "https://github.com/keks/unionize"
+keywords = ["distributed", "decentralized", "protocol", "gossip", "set-reconciliation"]
+license = "AGPL-3.0-or-later"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
