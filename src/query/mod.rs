@@ -1,3 +1,4 @@
+pub mod generic;
 pub mod items;
 pub mod simple;
 pub mod split;
@@ -7,7 +8,7 @@ use crate::{
     proto::ProtocolMonoid,
     range::Range,
     ranged_node::RangedNode,
-    Node,
+    Node, XNode,
 };
 use split::SplitAccumulator;
 
@@ -42,6 +43,9 @@ where
     M::Item: Item,
 {
     fn add_node(&mut self, node: &RangedNode<M>);
+    fn add_xnode<'a, N: XNode<'a, M>>(&mut self, node: &'a N)
+    where
+        M: 'a;
     fn add_item(&mut self, item: &M::Item);
 }
 
@@ -55,6 +59,11 @@ where
         query_range: &Range<M::Item>,
         state: &mut A,
     ) {
+        println!(
+            "y query:{query_range:?} node:{:?} node_range:{:?}",
+            self.node(),
+            self.range()
+        );
         if !self.range().has_overlap(query_range) {
             return;
         }
@@ -68,8 +77,14 @@ where
             // querying full range, node is completely in range,
             // but start at the boundary item, wrap around, and then end at the boundary item.
 
+            // // but if the boundary is the start of the node, just add the node
+            // if query_range.from() == self.range().from() {
+            //     state.add_node(&self);
+            //     return;
+            // }
+
             // first add items and children after the boundary
-            if let Some(new_query_range) = query_range.cap_right(self.range().to().clone()) {
+            if let Some(new_query_range) = query_range.cap_right(self.range().from().clone()) {
                 self.query_range_generic(&new_query_range, state);
             }
 
@@ -88,7 +103,9 @@ where
             for (child, ref item) in self.children() {
                 child.query_range_generic(query_range, state);
                 if query_range.contains(item) {
+                    println!("y adding item {item:?}");
                     state.add_item(&item);
+                    println!("{state:?}");
                 }
             }
 
@@ -207,7 +224,13 @@ pub mod test {
             let generic_query_result = acc.results().to_vec();
 
             let expected: Vec<_> = if query_range.is_full() {
-                items_sorted
+                let boundary = query_range.from();
+                let mut lesser_items : Vec<_> = items_sorted.iter().filter(|item| *item < boundary).cloned().collect();
+                let greater_items: Vec<_> = items_sorted.iter().filter(|item| *item >= boundary).cloned().collect();
+
+                let mut items = greater_items;
+                items.append(&mut lesser_items);
+                items
             } else if query_range.is_wrapping() {
                 items_sorted.iter().filter(|item|*item >= query_range.from()).chain(items_sorted.iter().filter(|item| *item < query_range.to())).cloned().collect()
             } else {
@@ -342,9 +365,11 @@ pub mod test {
             } else if from > to {
                 items_sorted.iter().cloned().filter(|item| from <= *item || *item < to).collect()
             } else {
-                items_sorted.clone()
+                let mut items = Vec::with_capacity(items_sorted.len());
+                items.extend(items_sorted.iter().cloned().filter(|item| *item >= from));
+                items.extend(items_sorted.iter().cloned().filter(|item| *item < from));
+                items
             };
-
 
             assert_eq!(item_count, matching_items.len());
 

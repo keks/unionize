@@ -1,5 +1,5 @@
 use super::Accumulator;
-use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, ranged_node::RangedNode};
+use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, ranged_node::RangedNode, XNode};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>
@@ -77,6 +77,7 @@ where
     M::Item: Item,
 {
     fn add_node(&mut self, node: &RangedNode<M>) {
+        println!("split add_node {node:?}");
         if node.node().monoid().count() == 0 {
             return;
         }
@@ -112,6 +113,55 @@ where
 
             self.add_node(&node.last_child().into());
         }
+    }
+
+    fn add_xnode<'b, N: XNode<'b, M>>(&mut self, node: &'b N)
+    where
+        M: 'b,
+    {
+        println!("split add_xnode {node:?}");
+        if node.is_nil() {
+            return;
+        }
+
+        // I think this assertion should always hold if the caller doesn't mess up.
+        assert!(
+            !self.is_done(),
+            "current state: {self:#?}\n  node to be added: {node:#?}",
+        );
+
+        if self.update_ranges {
+            let next_item = node.min_item().unwrap();
+            self.ranges[self.current_offset - 1].1 = next_item.clone();
+            self.ranges[self.current_offset].0 = next_item.clone();
+            self.update_ranges = false;
+        }
+
+        let current_split_size = self.current_split_size();
+        let current_offset = self.current_offset;
+        let current_result = self.current_result();
+        let space_left = current_split_size - current_result.count();
+
+        let node_monoid = node.monoid();
+
+        println!(
+            "space_left:{space_left} node_monoid:{node_monoid:?} current_offset:{current_offset}",
+        );
+        if node_monoid.count() < space_left {
+            *current_result = current_result.combine(&node_monoid);
+        } else if node_monoid.count() == space_left {
+            *current_result = current_result.combine(&node_monoid);
+            self.advance_bucket();
+        } else {
+            for (child, item) in node.children().unwrap() {
+                self.add_xnode(child);
+                self.add_item(&item);
+            }
+
+            self.add_xnode(node.last_child().unwrap());
+        }
+
+        println!("buckets:{:?}", self.results);
     }
 
     fn add_item(&mut self, item: &M::Item) {

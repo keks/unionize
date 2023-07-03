@@ -15,3 +15,4 @@ cc 12b8d35eeefae06d907bdec26b0951552fb936d81ba0a3c69c16a3ffb1f36567 # shrinks to
 cc a2af16bf73b725efcbdd1171178904fbe5b905d559b3e2a0832e8f08aeb6d8b1 # shrinks to items = [1, 2, 513], from = 515, to = 2
 cc 686654ebd70ebf0c9d0803c88df6e7faf8ffbc4b4c695dc1eb5fdd83b143d3b3 # shrinks to items = [1, 2, 166], from = 168, to = 2
 cc 4ee075b5070d0b9805de35918b65fb8e52546f23729b4af9aa7af575ee691ec1 # shrinks to items = [902, 1, 2], from = 904, to = 2
+cc 4d7941bd6e24cfeb76c2fa040a651425b8e534297674ecb173f0eef64ad4acd8 # shrinks to items = [1], from = 665, to = 665

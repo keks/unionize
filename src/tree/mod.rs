@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 mod fmt;
 mod insert;
+mod node_impl;
 
 #[derive(Clone, Debug)]
 pub struct Tree<M: Monoid>(Rc<Node<M>>);
@@ -337,4 +338,3 @@ impl<M: Monoid> Node<M> {
         }
     }
 }
-

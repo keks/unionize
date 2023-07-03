@@ -1,4 +1,4 @@
-use crate::{monoid::Monoid, ranged_node::RangedNode};
+use crate::{monoid::Monoid, ranged_node::RangedNode, XNode};
 
 use super::Accumulator;
 
@@ -27,6 +27,20 @@ impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
         }
 
         self.0 = self.0.combine(node.node().last_child().monoid());
+    }
+
+    fn add_xnode<'a, N: XNode<'a, M>>(&mut self, node: &'a N)
+    where
+        M: 'a,
+    {
+        if let Some(children) = node.children() {
+            for (child, item) in children {
+                self.0 = self.0.combine(child.monoid());
+                self.0 = self.0.combine(&M::lift(&item));
+            }
+
+            self.0 = self.0.combine(node.last_child().unwrap().monoid());
+        }
     }
 
     fn add_item(&mut self, item: &M::Item) {
