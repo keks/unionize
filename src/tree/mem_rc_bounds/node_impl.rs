@@ -1,8 +1,8 @@
 use super::Node;
 use crate::monoid::Monoid;
-use crate::XNode;
+use crate::Node as NodeTrait;
 
-impl<'a, M> XNode<'a, M> for Node<M>
+impl<'a, M> NodeTrait<'a, M> for Node<M>
 where
     M: Monoid + 'a,
     Self: 'a,
@@ -21,8 +21,8 @@ where
         match self {
             Node::Node2(node_data) if self.is_leaf() => Some(&node_data.items[0]),
             Node::Node3(node_data) if self.is_leaf() => Some(&node_data.items[0]),
-            Node::Node2(node_data) => node_data.children[0].min_item(),
-            Node::Node3(node_data) => node_data.children[0].min_item(),
+            Node::Node2(node_data) => Some(&node_data.min),
+            Node::Node3(node_data) => Some(&node_data.min),
             Node::Nil(_) => None,
         }
     }
@@ -31,8 +31,8 @@ where
         match self {
             Node::Node2(node_data) if self.is_leaf() => Some(&node_data.items[0]),
             Node::Node3(node_data) if self.is_leaf() => Some(&node_data.items[1]),
-            Node::Node2(node_data) => node_data.last_child.max_item(),
-            Node::Node3(node_data) => node_data.last_child.max_item(),
+            Node::Node2(node_data) => Some(&node_data.max),
+            Node::Node3(node_data) => Some(&node_data.max),
             Node::Nil(_) => None,
         }
     }

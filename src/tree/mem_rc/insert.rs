@@ -1,7 +1,5 @@
-use crate::{
-    monoid::Monoid,
-    tree::{Node, NodeData},
-};
+use super::{Node, NodeData};
+use crate::monoid::Monoid;
 
 use std::rc::Rc;
 

@@ -1,5 +1,5 @@
 use super::Accumulator;
-use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, ranged_node::RangedNode, XNode};
+use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, Node};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>
@@ -76,50 +76,11 @@ where
     M: ProtocolMonoid,
     M::Item: Item,
 {
-    fn add_node(&mut self, node: &RangedNode<M>) {
-        println!("split add_node {node:?}");
-        if node.node().monoid().count() == 0 {
-            return;
-        }
-
-        // I think this assertion should always hold if the caller doesn't mess up.
-        assert!(
-            !self.is_done(),
-            "current state: {self:#?}\nnode to be added: {node:#?}"
-        );
-
-        if self.update_ranges {
-            let next_item = node.range().from();
-            self.ranges[self.current_offset - 1].1 = next_item.clone();
-            self.ranges[self.current_offset].0 = next_item.clone();
-            self.update_ranges = false;
-        }
-
-        let current_split_size = self.current_split_size();
-        let current_result = self.current_result();
-        let space_left = current_split_size - current_result.count();
-
-        let node_monoid = node.node().monoid();
-        if node_monoid.count() < space_left {
-            *current_result = current_result.combine(&node_monoid);
-        } else if node_monoid.count() == space_left {
-            *current_result = current_result.combine(&node_monoid);
-            self.advance_bucket();
-        } else {
-            for (child, item) in node.children() {
-                self.add_node(&child.into());
-                self.add_item(&item);
-            }
-
-            self.add_node(&node.last_child().into());
-        }
-    }
-
-    fn add_xnode<'b, N: XNode<'b, M>>(&mut self, node: &'b N)
+    fn add_xnode<'b, N: Node<'b, M>>(&mut self, node: &'b N)
     where
         M: 'b,
     {
-        println!("split add_xnode {node:?}");
+        //println!("split add_xnode {node:?}");
         if node.is_nil() {
             return;
         }
@@ -138,15 +99,15 @@ where
         }
 
         let current_split_size = self.current_split_size();
-        let current_offset = self.current_offset;
+        // let current_offset = self.current_offset;
         let current_result = self.current_result();
         let space_left = current_split_size - current_result.count();
 
         let node_monoid = node.monoid();
 
-        println!(
-            "space_left:{space_left} node_monoid:{node_monoid:?} current_offset:{current_offset}",
-        );
+        // println!(
+        //     "space_left:{space_left} node_monoid:{node_monoid:?} current_offset:{current_offset}",
+        // );
         if node_monoid.count() < space_left {
             *current_result = current_result.combine(&node_monoid);
         } else if node_monoid.count() == space_left {
@@ -161,7 +122,7 @@ where
             self.add_xnode(node.last_child().unwrap());
         }
 
-        println!("buckets:{:?}", self.results);
+        // println!("buckets:{:?}", self.results);
     }
 
     fn add_item(&mut self, item: &M::Item) {
@@ -187,8 +148,9 @@ where
 mod test {
     use super::*;
     use crate::monoid::Monoid;
+    use crate::query::generic::query_range_generic;
     use crate::query::{simple::SimpleAccumulator, test::TestMonoid};
-    use crate::tree::Node;
+    use crate::tree::mem_rc_bounds::Node;
     use proptest::{prelude::*, prop_assert_eq, prop_assume, proptest};
     use std::collections::HashSet;
 
@@ -211,11 +173,9 @@ mod test {
             }
             println!("in tree form: {:}", root);
 
-            let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
-            let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
-
-            let ranged_root = RangedNode::new(&root, Range(min, max+1));
-            let query_result = ranged_root.query_range(&query_range);
+            let mut simple_acc = SimpleAccumulator::new();
+            query_range_generic(&root, &query_range, &mut simple_acc);
+            let query_result = simple_acc.into_result();
 
             // make sure we don't glitch on empty splits
             prop_assume!(query_result.count() > 1);
@@ -226,7 +186,7 @@ mod test {
 
             let split_sizes = &[first_bucket_count, second_bucket_count];
             let mut acc = SplitAccumulator::new(&query_range, split_sizes);
-            ranged_root.query_range_generic(&query_range, &mut acc);
+            query_range_generic(&root, &query_range, &mut acc);
 
             // assuming we the splits are >0 (as per the count>1 assumption above), assert that we
             // don't get ranges of the form x..x due to cutting down the range. x..x means full
@@ -237,8 +197,8 @@ mod test {
             let mut simple1 = SimpleAccumulator::new();
             let mut simple2 = SimpleAccumulator::new();
 
-            ranged_root.query_range_generic(&acc.ranges()[0], &mut simple1);
-            ranged_root.query_range_generic(&acc.ranges()[1], &mut simple2);
+            query_range_generic(&root, &acc.ranges()[0], &mut simple1);
+            query_range_generic(&root, &acc.ranges()[1], &mut simple2);
 
             println!("query range: {query_range}");
             println!("split counts: {split_sizes:?}");

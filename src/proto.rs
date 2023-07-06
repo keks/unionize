@@ -1,8 +1,8 @@
 use crate::{
-    monoid::{Item, Monoid},
-    query::{items::ItemsAccumulator, split::SplitAccumulator},
+    monoid::{Item, Monoid, Peano},
+    query::{items::ItemsAccumulator, simple::SimpleAccumulator, split::SplitAccumulator},
     range::Range,
-    ranged_node::RangedNode,
+    Node,
 };
 
 impl Item for u64 {}
@@ -49,25 +49,42 @@ where
     }
 }
 
-pub fn first_message<M>(root: &RangedNode<M>) -> Result<Message<M>, M::Error>
+pub fn first_message<'a, M, N>(root: &N) -> Result<Message<M>, M::Error>
 where
-    M: ProtocolMonoid,
+    M: ProtocolMonoid + 'a,
+    N: Node<'a, M>,
 {
-    Ok(Message(vec![
-        (
-            root.range().clone(),
-            MessagePart::Fingerprint(root.node().monoid().to_encoded()?),
-        ),
-        (root.range().reverse(), MessagePart::ItemSet(vec![], true)),
-    ]))
+    let parts = match (root.min_item(), root.max_item()) {
+        (Some(min), Some(max)) => {
+            let range = Range(min.clone(), max.next());
+            let full_monoid = MessagePart::Fingerprint(root.monoid().to_encoded()?);
+            vec![
+                (range.clone(), full_monoid),
+                (range.reverse(), MessagePart::ItemSet(vec![], true)),
+            ]
+        }
+        (None, None) => {
+            vec![(
+                Range(M::Item::zero(), M::Item::zero()),
+                MessagePart::ItemSet(vec![], true),
+            )]
+        }
+        _ => unreachable!(),
+    };
+
+    Ok(Message(parts))
 }
 
-pub fn respond_to_message<M: ProtocolMonoid>(
-    root: &RangedNode<M>,
+pub fn respond_to_message<'a, M, N>(
+    root: &'a N,
     msg: &Message<M>,
     threshold: usize,
     split: fn(usize) -> Vec<usize>,
-) -> Result<(Message<M>, Vec<M::Item>), M::Error> {
+) -> Result<(Message<M>, Vec<M::Item>), M::Error>
+where
+    M: ProtocolMonoid + 'a,
+    N: Node<'a, M>,
+{
     let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
     let mut new_items = vec![];
 
@@ -75,11 +92,13 @@ pub fn respond_to_message<M: ProtocolMonoid>(
         match part {
             MessagePart::Fingerprint(their_fp) => {
                 let their_fp = M::from_encoded(their_fp)?;
-                let my_fp = root.query_range(range);
+                let mut my_fp_acc = SimpleAccumulator::new();
+                root.query(range, &mut my_fp_acc);
+                let my_fp = my_fp_acc.into_result();
                 if my_fp != their_fp {
                     if my_fp.count() < threshold {
                         let mut acc = ItemsAccumulator::new();
-                        root.query_range_generic(range, &mut acc);
+                        root.query(range, &mut acc);
                         response_parts.push((
                             range.clone(),
                             MessagePart::ItemSet(acc.into_results(), true),
@@ -89,14 +108,14 @@ pub fn respond_to_message<M: ProtocolMonoid>(
 
                     let splits = split(my_fp.count());
                     let mut acc = SplitAccumulator::new(range, &splits);
-                    root.query_range_generic(range, &mut acc);
+                    root.query(range, &mut acc);
                     let results = acc.results();
                     let ranges = acc.ranges();
                     for (i, fp) in results.iter().enumerate() {
                         let sub_range = &ranges[i];
                         if fp.count() < threshold {
                             let mut acc = ItemsAccumulator::new();
-                            root.query_range_generic(sub_range, &mut acc);
+                            root.query(sub_range, &mut acc);
                             response_parts.push((
                                 sub_range.clone(),
                                 MessagePart::ItemSet(acc.into_results(), true),
@@ -109,20 +128,20 @@ pub fn respond_to_message<M: ProtocolMonoid>(
 
                             if fp.count() == threshold {
                                 let mut acc = ItemsAccumulator::new();
-                                root.query_range_generic(sub_range, &mut acc);
+                                root.query(sub_range, &mut acc);
                             }
                         }
                     }
                 } else {
                     let mut acc = ItemsAccumulator::new();
-                    root.query_range_generic(range, &mut acc);
+                    root.query(range, &mut acc);
                 }
             }
             MessagePart::ItemSet(items, want_response) => {
                 new_items.extend_from_slice(&items);
                 if *want_response {
                     let mut acc = ItemsAccumulator::new();
-                    root.query_range_generic(range, &mut acc);
+                    root.query(range, &mut acc);
                     response_parts.push((
                         range.clone(),
                         MessagePart::ItemSet(acc.into_results(), false),
@@ -140,9 +159,7 @@ mod tests {
     use crate::{
         hash_item::LEByteArray,
         monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
-        range::Range,
-        ranged_node::RangedNode,
-        Node,
+        tree::mem_rc_bounds::Node,
     };
     use proptest::{prelude::prop, prop_assert, proptest};
     use std::{
@@ -196,41 +213,7 @@ mod tests {
         // println!("alices tree: {alice_tree:?}");
         std::io::stdout().flush().unwrap();
 
-        let min_alice = alices_msgs
-            .iter()
-            .fold(LEByteArray([255u8; 30]), |acc, cur| acc.min(cur.clone()));
-        let mut max_alice = alices_msgs
-            .iter()
-            .fold(LEByteArray([0u8; 30]), |acc, cur| acc.max(cur.clone()));
-        let min_bob = bobs_msgs
-            .iter()
-            .fold(LEByteArray([255u8; 30]), |acc, cur| acc.min(cur.clone()));
-        let mut max_bob = bobs_msgs
-            .iter()
-            .fold(LEByteArray([0u8; 30]), |acc, cur| acc.max(cur.clone()));
-
-        for i in 0..30 {
-            if max_bob.0[i] == 255 {
-                max_bob.0[i] = 0;
-            } else {
-                max_bob.0[i] += 1;
-                break;
-            }
-        }
-
-        for i in 0..30 {
-            if max_alice.0[i] == 255 {
-                max_alice.0[i] = 0;
-            } else {
-                max_alice.0[i] += 1;
-                break;
-            }
-        }
-
-        let ranged_root_alice = RangedNode::new(&alice_tree, Range(min_alice, max_alice));
-        let ranged_root_bob = RangedNode::new(&bob_tree, Range(min_bob, max_bob));
-
-        let mut msg = super::first_message(&ranged_root_alice).unwrap();
+        let mut msg = super::first_message(&alice_tree).unwrap();
 
         let mut missing_items_alice = vec![];
         let mut missing_items_bob = vec![];
@@ -246,8 +229,7 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) =
-                super::respond_to_message(&ranged_root_bob, &msg, 3, split).unwrap();
+            let (resp, new_items) = super::respond_to_message(&bob_tree, &msg, 3, split).unwrap();
             missing_items_bob.extend(new_items.into_iter());
 
             // println!("bob msg:   {resp:?}");
@@ -257,7 +239,7 @@ mod tests {
             }
 
             let (resp, new_items) =
-                super::respond_to_message(&ranged_root_alice, &resp, 3, split).unwrap();
+                super::respond_to_message(&alice_tree, &resp, 3, split).unwrap();
             missing_items_alice.extend(new_items.into_iter());
 
             msg = resp;
@@ -355,15 +337,7 @@ mod tests {
                 root_b = root_b.insert(item);
             }
 
-            let min_a = item_set_a.iter().fold(1000, |acc, x| if *x < acc {*x} else {acc});
-            let max_a = item_set_a.iter().fold(0, |acc, x| if *x > acc {*x} else {acc});
-            let min_b = item_set_b.iter().fold(1000, |acc, x| if *x < acc {*x} else {acc});
-            let max_b = item_set_b.iter().fold(0, |acc, x| if *x > acc {*x} else {acc});
-
-            let ranged_root_a = RangedNode::new(&root_a, Range(min_a, max_a+1));
-            let ranged_root_b = RangedNode::new(&root_b, Range(min_b, max_b+1));
-
-            let mut msg = super::first_message(&ranged_root_a).unwrap();
+            let mut msg = super::first_message(&root_a).unwrap();
 
             let mut missing_items_a = vec![];
             let mut missing_items_b = vec![];
@@ -375,7 +349,7 @@ mod tests {
                 }
 
 
-                let (resp, new_items) = super::respond_to_message(&ranged_root_b, &msg, 3, split).unwrap();
+                let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
                 missing_items_b.extend(new_items.into_iter());
 
                 println!("b msg: {resp:?}");
@@ -384,7 +358,7 @@ mod tests {
                 }
 
 
-                let (resp, new_items) = super::respond_to_message(&ranged_root_a, &resp, 3, split).unwrap();
+                let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
                 missing_items_a.extend(new_items.into_iter());
 
                 msg = resp;
@@ -474,23 +448,7 @@ mod tests {
             root_b = root_b.insert(item);
         }
 
-        let min_a = item_set_a
-            .iter()
-            .fold(1000, |acc, x| if *x < acc { *x } else { acc });
-        let max_a = item_set_a
-            .iter()
-            .fold(0, |acc, x| if *x > acc { *x } else { acc });
-        let min_b = item_set_b
-            .iter()
-            .fold(1000, |acc, x| if *x < acc { *x } else { acc });
-        let max_b = item_set_b
-            .iter()
-            .fold(0, |acc, x| if *x > acc { *x } else { acc });
-
-        let ranged_root_a = RangedNode::new(&root_a, Range(min_a, max_a + 1));
-        let ranged_root_b = RangedNode::new(&root_b, Range(min_b, max_b + 1));
-
-        let mut msg = super::first_message(&ranged_root_a).unwrap();
+        let mut msg = super::first_message(&root_a).unwrap();
 
         let mut missing_items_a = vec![];
         let mut missing_items_b = vec![];
@@ -501,8 +459,7 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) =
-                super::respond_to_message(&ranged_root_b, &msg, 3, split).unwrap();
+            let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
             missing_items_b.extend(new_items.into_iter());
 
             println!("b msg: {resp:?}");
@@ -510,8 +467,7 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) =
-                super::respond_to_message(&ranged_root_a, &resp, 3, split).unwrap();
+            let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
             missing_items_a.extend(new_items.into_iter());
 
             msg = resp;
@@ -553,6 +509,6 @@ mod tests {
 
         println!("{a_eq}, {b_eq}");
         assert!(a_eq, "a does not match");
-        assert!(b_eq, "a does not match");
+        assert!(b_eq, "b does not match");
     }
 }

@@ -1,17 +1,17 @@
 use crate::{
     monoid::{Monoid, Peano},
     range::Range,
-    XNode,
+    Node,
 };
 
 use super::Accumulator;
 
-pub fn query_range_generic<'a, M: Monoid + 'a, N: XNode<'a, M>, A: Accumulator<M>>(
+pub fn query_range_generic<'a, M: Monoid + 'a, N: Node<'a, M>, A: Accumulator<M>>(
     node: &'a N,
     query_range: &Range<M::Item>,
     state: &mut A,
 ) {
-    println!("query node@{node:?}");
+    //println!("query range:{query_range:?} node@{node:p}");
     if node.is_nil() {
         return;
     }
@@ -28,7 +28,7 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: XNode<'a, M>, A: Accumulator<M
         query_range.from() <= min && max < query_range.to()
     };
 
-    println!("min:{min:?} max:{max:?} has_overlap:{has_overlap} is_subrange:{is_subrange}");
+    //println!("min:{min:?} max:{max:?} has_overlap:{has_overlap} is_subrange:{is_subrange}");
 
     if !(has_overlap) {
         return;
@@ -56,7 +56,6 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: XNode<'a, M>, A: Accumulator<M
         }
         // this is a non-wrapping query
         for (child, item) in node.children().unwrap() {
-            println!("child: {child:?}");
             query_range_generic(child, query_range, state);
             if query_range.contains(item) {
                 state.add_item(&item);
@@ -64,7 +63,6 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: XNode<'a, M>, A: Accumulator<M
         }
 
         let child = node.last_child().unwrap();
-        println!("child: {child:?} --- last");
         query_range_generic(child, query_range, state);
     } else {
         if is_subrange {
@@ -98,27 +96,29 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: XNode<'a, M>, A: Accumulator<M
         }
 
         for (child, item) in node.children().unwrap() {
-            let min_item = child.min_item().unwrap();
-            if min_item <= query_range.to() {
-                if let Some(next_query_range) = query_range.cap_left(min_item.clone()) {
-                    query_range_generic(child, &next_query_range, state);
+            if let Some(min_item) = child.min_item() {
+                if min_item <= query_range.to() {
+                    if let Some(next_query_range) = query_range.cap_left(min_item.clone()) {
+                        query_range_generic(child, &next_query_range, state);
+                    }
                 }
+            }
 
-                if item < query_range.to() {
-                    state.add_item(&item);
-                }
+            if item < query_range.to() {
+                state.add_item(&item);
             }
         }
 
         // The last child may also contain nodes from after wrapping, but that is only the
         // case if last_child.range.from < query_range.to().
         let last_child = node.last_child().unwrap();
-        let min_item = last_child.min_item().unwrap();
-        if min_item < query_range.to() {
-            let next_query_range = query_range
-                .cap_left(min_item.clone())
-                .expect("guaranteed since min_item < query_range.to()");
-            query_range_generic(last_child, &next_query_range, state);
+        if let Some(min_item) = last_child.min_item() {
+            if min_item < query_range.to() {
+                let next_query_range = query_range
+                    .cap_left(min_item.clone())
+                    .expect("guaranteed since min_item < query_range.to()");
+                query_range_generic(last_child, &next_query_range, state);
+            }
         }
     }
 }
@@ -130,8 +130,7 @@ mod test {
     use crate::proto::ProtocolMonoid;
     use crate::query::split::SplitAccumulator;
     use crate::query::{simple::SimpleAccumulator, test::TestMonoid};
-    use crate::ranged_node::RangedNode;
-    use crate::tree::Node;
+    use crate::tree::mem_rc_bounds::Node;
     use proptest::{prelude::*, prop_assert_eq, prop_assume, proptest};
     use std::collections::HashSet;
 
@@ -154,11 +153,9 @@ mod test {
             }
             println!("in tree form: {:}", root);
 
-            let min = root.min_item().unwrap();
-            let max = root.max_item().unwrap();
-
-            let ranged_root = RangedNode::new(&root, Range(*min, max.next()));
-            let query_result = ranged_root.query_range(&query_range);
+            let mut simple_acc = SimpleAccumulator::new();
+            query_range_generic(&root, &query_range, &mut simple_acc);
+            let query_result = simple_acc.into_result();
 
             // make sure we don't glitch on empty splits
             prop_assume!(query_result.count() > 1);
@@ -180,8 +177,8 @@ mod test {
             let mut simple1 = SimpleAccumulator::new();
             let mut simple2 = SimpleAccumulator::new();
 
-            ranged_root.query_range_generic(&acc.ranges()[0], &mut simple1);
-            ranged_root.query_range_generic(&acc.ranges()[1], &mut simple2);
+            query_range_generic(&root, &acc.ranges()[0], &mut simple1);
+            query_range_generic(&root, &acc.ranges()[1], &mut simple2);
 
             println!("query range: {query_range}");
             println!("split counts: {split_sizes:?}");

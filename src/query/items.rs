@@ -1,4 +1,4 @@
-use crate::{monoid::Monoid, ranged_node::RangedNode, XNode};
+use crate::{monoid::Monoid, Node};
 
 use super::Accumulator;
 
@@ -25,21 +25,7 @@ impl<M> Accumulator<M> for ItemsAccumulator<M>
 where
     M: Monoid,
 {
-    fn add_node(&mut self, node: &RangedNode<M>) {
-        let is_leaf = node.node().is_leaf();
-        for (child, item) in node.children() {
-            if !is_leaf {
-                self.add_node(&child);
-            }
-            self.items.push(item);
-        }
-
-        if !is_leaf {
-            self.add_node(&node.last_child())
-        }
-    }
-
-    fn add_xnode<'a, N: XNode<'a, M>>(&mut self, node: &'a N)
+    fn add_xnode<'a, N: Node<'a, M>>(&mut self, node: &'a N)
     where
         M: 'a,
     {

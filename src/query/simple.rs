@@ -1,4 +1,4 @@
-use crate::{monoid::Monoid, ranged_node::RangedNode, XNode};
+use crate::{monoid::Monoid, Node};
 
 use super::Accumulator;
 
@@ -20,16 +20,7 @@ impl<M: Monoid> SimpleAccumulator<M> {
 }
 
 impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
-    fn add_node(&mut self, node: &RangedNode<M>) {
-        for (child, item) in node.children() {
-            self.0 = self.0.combine(child.node().monoid());
-            self.0 = self.0.combine(&M::lift(&item));
-        }
-
-        self.0 = self.0.combine(node.node().last_child().monoid());
-    }
-
-    fn add_xnode<'a, N: XNode<'a, M>>(&mut self, node: &'a N)
+    fn add_xnode<'a, N: Node<'a, M>>(&mut self, node: &'a N)
     where
         M: 'a,
     {
@@ -51,8 +42,9 @@ impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
 
 mod test {
     use super::*;
+    use crate::query::generic::query_range_generic;
     use crate::query::test::TestMonoid;
-    use crate::tree::Node;
+    use crate::tree::mem_rc_bounds::Node;
     use crate::{monoid::Monoid, range::Range};
     use proptest::{prelude::*, prop_assert_eq, proptest};
     use std::collections::HashSet;
@@ -73,15 +65,12 @@ mod test {
             }
             println!("in tree form: {:}", root);
 
-            let min = items.iter().fold(10000, |acc, x| u64::min(*x, acc));
-            let max = items.iter().fold(0, |acc, x| u64::max(*x, acc));
 
-            let ranged_root = RangedNode::new(&root, Range(min, max+1));
-            let query_result = ranged_root.query_range(&query_range);
             let mut acc = SimpleAccumulator::new();
-            ranged_root.query_range_generic(&query_range, &mut acc);
+            query_range_generic(&root, &query_range, &mut acc);
 
-            prop_assert_eq!(&query_result, acc.result());
+            let expected = item_set.iter().filter(|item|query_range.contains(item)).fold(TestMonoid::neutral(), |acc, item|acc.combine(&TestMonoid::lift(item)));
+            prop_assert_eq!(&expected, acc.result());
         }
     }
 }

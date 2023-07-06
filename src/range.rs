@@ -1,4 +1,7 @@
-use crate::monoid::Item;
+use crate::{
+    monoid::{Item, Monoid},
+    Node,
+};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Range<T: Item>(pub(crate) T, pub(crate) T);
@@ -35,32 +38,47 @@ impl<T: Item> Range<T> {
         from == to
     }
 
-    pub(crate) fn has_overlap(&self, other: &Self) -> bool {
-        if self.is_full() || other.is_full() {
-            return true;
+    pub(crate) fn has_overlap<'a, N, M>(&self, node: &'a N) -> bool
+    where
+        M: Monoid<Item = T> + 'a,
+        N: Node<'a, M>,
+    {
+        if node.is_nil() {
+            return false;
         }
 
-        match (self.is_wrapping(), other.is_wrapping()) {
-            (true, true) => true, // they at least overlap at the wrap
-            (false, false) => !(self.from() >= other.to() || other.from() >= self.to()),
+        let min = node
+            .min_item()
+            .expect("can only fail with nil node, node isn't nil");
+        let max = node
+            .max_item()
+            .expect("can only fail with nil node, node isn't nil");
 
-            _ => self.from() < other.to() || other.from() < self.to(),
-        }
+        max >= self.from() || min < self.to()
     }
 
-    pub(crate) fn is_subrange_of(&self, other: &Self) -> bool {
-        if other.is_full() {
+    pub(crate) fn fully_contains<'a, M, N>(&self, node: &'a N) -> bool
+    where
+        M: Monoid<Item = T> + 'a,
+        N: Node<'a, M>,
+    {
+        if node.is_nil() {
+            return false;
+        }
+
+        let min = node
+            .min_item()
+            .expect("can only fail with nil node, node isn't nil");
+        let max = node
+            .max_item()
+            .expect("can only fail with nil node, node isn't nil");
+
+        if self.is_full() {
             true
-        } else if self.is_full() {
-            false
-        } else if self.is_wrapping() && other.is_wrapping() {
-            self.0 >= other.1 && self.1 <= other.1
         } else if self.is_wrapping() {
-            false
-        } else if other.is_wrapping() {
-            self.0 >= other.0 || self.1 <= other.1
+            min >= self.from() || max < self.to()
         } else {
-            self.0 >= other.0 && self.1 <= other.1
+            min >= self.from() && max < self.to()
         }
     }
 

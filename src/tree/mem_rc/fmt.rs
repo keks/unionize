@@ -1,4 +1,5 @@
-use crate::{monoid::Monoid, tree::ChildId, Node};
+use super::{ChildId, Node};
+use crate::monoid::Monoid;
 
 impl<M: Monoid> std::fmt::Debug for Node<M> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
