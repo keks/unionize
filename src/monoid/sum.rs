@@ -2,9 +2,8 @@ use crate::proto::Encodable;
 
 use super::{Item, Monoid};
 
-pub trait SumItem: Item + core::ops::Add<Output = Self> {
-    fn zero() -> Self;
-}
+pub trait SumItem: Item + core::ops::Add<Output = Self> {}
+impl<I> SumItem for I where I: Item + core::ops::Add<Output = Self> {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SumMonoid<I: SumItem>(pub I);
@@ -17,7 +16,7 @@ impl<I: SumItem> SumMonoid<I> {
 
 impl<I: SumItem> Default for SumMonoid<I> {
     fn default() -> Self {
-        SumMonoid(<I as SumItem>::zero())
+        SumMonoid(<I as Item>::zero())
     }
 }
 
@@ -40,7 +39,7 @@ impl<I: SumItem> Monoid for SumMonoid<I> {
     type Item = I;
 
     fn neutral() -> Self {
-        SumMonoid(<I as SumItem>::zero())
+        SumMonoid(<I as Item>::zero())
     }
 
     fn lift(item: &Self::Item) -> Self {

@@ -16,15 +16,8 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use crate::{
-        monoid::count::CountingMonoid,
-        monoid::sum::{SumItem, SumMonoid},
-    };
-    pub type TestMonoid<T> = CountingMonoid<SumMonoid<T>>;
+    use crate::monoid::{count::CountingMonoid, sum::SumMonoid};
 
-    impl SumItem for u64 {
-        fn zero() -> u64 {
-            0
-        }
-    }
+    // helper type for tests
+    pub(crate) type TestMonoid<T> = CountingMonoid<SumMonoid<T>>;
 }
