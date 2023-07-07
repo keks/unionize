@@ -199,7 +199,7 @@ mod tests {
         let gen_start_time = std::time::Instant::now();
 
         print!("generating and adding items... ");
-        //std::io::stdout().flush().unwrap();
+        std::io::stdout().flush().unwrap();
         let mut rng = ChaCha8Rng::from_seed([23u8; 32]);
         for msg in &mut shared_msgs {
             rng.fill(&mut msg.0);
