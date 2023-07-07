@@ -4,13 +4,14 @@ use item::Item;
 use query::Accumulator;
 use range::Range;
 
-pub mod proto;
-pub mod range;
-
 pub mod item;
 pub mod monoid;
 pub mod query;
 pub mod tree;
+
+pub mod easy;
+pub mod proto;
+pub mod range;
 
 pub trait NonNilNodeRef<'a, M, N>: core::fmt::Debug + Clone
 where
