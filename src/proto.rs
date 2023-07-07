@@ -166,9 +166,9 @@ mod tests {
     use std::{io::Write, print, println};
 
     use crate::{
-        item::le_byte_array::LEByteArray,
-        monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
-        tree::mem_rc_bounds::Node,
+        easy::uniform::{split as uniform_split, Item as UniformItem, Node as UniformNode},
+        monoid::hashxor::CountingSha256Xor,
+        tree::mem_rc::Node,
     };
 
     use proptest::{prelude::prop, prop_assert, proptest};
@@ -177,21 +177,12 @@ mod tests {
 
     #[test]
     fn sync_100k_msgs() {
-        let mut shared_msgs = vec![LEByteArray::<30>::default(); 60_000];
-        let mut alices_msgs = vec![LEByteArray::<30>::default(); 20_000];
-        let mut bobs_msgs = vec![LEByteArray::<30>::default(); 20_000];
+        let mut shared_msgs = vec![UniformItem::default(); 60_000];
+        let mut alices_msgs = vec![UniformItem::default(); 20_000];
+        let mut bobs_msgs = vec![UniformItem::default(); 20_000];
 
-        let split = |n| {
-            let snd = n / 2;
-            let fst = n - snd;
-
-            vec![fst, snd]
-        };
-
-        let mut alice_tree: Node<CountingMonoid<MulHashMonoid<xs233::xsk233::Xsk233Point>>> =
-            Node::nil();
-        let mut bob_tree: Node<CountingMonoid<MulHashMonoid<xs233::xsk233::Xsk233Point>>> =
-            Node::nil();
+        let mut alice_tree = UniformNode::nil();
+        let mut bob_tree = UniformNode::nil();
 
         let statm = procinfo::pid::statm_self().unwrap();
         println!("current memory usage: {statm:#?}");
@@ -240,7 +231,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&bob_tree, &msg, 3, split).unwrap();
+            let (resp, new_items) =
+                super::respond_to_message(&bob_tree, &msg, 3, uniform_split::<2>).unwrap();
             missing_items_bob.extend(new_items.into_iter());
 
             // println!("bob msg:   {resp:?}");
@@ -250,7 +242,7 @@ mod tests {
             }
 
             let (resp, new_items) =
-                super::respond_to_message(&alice_tree, &resp, 3, split).unwrap();
+                super::respond_to_message(&alice_tree, &resp, 3, uniform_split::<2>).unwrap();
             missing_items_alice.extend(new_items.into_iter());
 
             msg = resp;
@@ -261,16 +253,15 @@ mod tests {
             loop_start_time.elapsed()
         );
 
-        let mut all_items: BTreeSet<LEByteArray<30>> =
-            BTreeSet::from_iter(shared_msgs.iter().cloned());
+        let mut all_items: BTreeSet<UniformItem> = BTreeSet::from_iter(shared_msgs.iter().cloned());
         all_items.extend(alices_msgs.iter());
         all_items.extend(bobs_msgs.iter());
 
-        let mut all_items_alice: BTreeSet<LEByteArray<30>> =
+        let mut all_items_alice: BTreeSet<UniformItem> =
             BTreeSet::from_iter(shared_msgs.iter().cloned());
         all_items_alice.extend(alices_msgs.iter());
 
-        let mut all_items_bob: BTreeSet<LEByteArray<30>> =
+        let mut all_items_bob: BTreeSet<UniformItem> =
             BTreeSet::from_iter(shared_msgs.iter().cloned());
         all_items_bob.extend(bobs_msgs.iter());
 
@@ -324,13 +315,6 @@ mod tests {
         fn protocol_correctness(items_party_a in prop::collection::vec(1..1000u64, 1..100usize), items_party_b in prop::collection::vec(1..1000u64, 1..100usize)) {
             println!();
 
-            let split = |n| {
-                let snd = n / 2;
-                let fst = n - snd;
-
-                vec![fst, snd]
-            };
-
             let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
             let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
@@ -361,7 +345,7 @@ mod tests {
 
 
             println!("b-----");
-                let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
+                let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, uniform_split::<2>).unwrap();
                 missing_items_b.extend(new_items.into_iter());
 
                 println!("b msg: {resp:?}");
@@ -371,7 +355,7 @@ mod tests {
 
 
             println!("a-----");
-                let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
+                let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, uniform_split::<2>).unwrap();
                 missing_items_a.extend(new_items.into_iter());
 
                 msg = resp;
@@ -437,13 +421,6 @@ mod tests {
 
         println!();
 
-        let split = |n| {
-            let snd = n / 2;
-            let fst = n - snd;
-
-            vec![fst, snd]
-        };
-
         let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
         let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
@@ -472,7 +449,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
+            let (resp, new_items) =
+                super::respond_to_message(&root_b, &msg, 3, uniform_split::<2>).unwrap();
             missing_items_b.extend(new_items.into_iter());
 
             println!("b msg: {resp:?}");
@@ -480,7 +458,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
+            let (resp, new_items) =
+                super::respond_to_message(&root_a, &resp, 3, uniform_split::<2>).unwrap();
             missing_items_a.extend(new_items.into_iter());
 
             msg = resp;
@@ -538,13 +517,6 @@ mod tests {
 
         println!();
 
-        let split = |n| {
-            let snd = n / 2;
-            let fst = n - snd;
-
-            vec![fst, snd]
-        };
-
         let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
         let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
@@ -573,7 +545,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
+            let (resp, new_items) =
+                super::respond_to_message(&root_b, &msg, 3, uniform_split::<2>).unwrap();
             missing_items_b.extend(new_items.into_iter());
 
             println!("b msg: {resp:?}");
@@ -581,7 +554,8 @@ mod tests {
                 break;
             }
 
-            let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
+            let (resp, new_items) =
+                super::respond_to_message(&root_a, &resp, 3, uniform_split::<2>).unwrap();
             missing_items_a.extend(new_items.into_iter());
 
             msg = resp;
