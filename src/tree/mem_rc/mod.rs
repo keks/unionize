@@ -1,5 +1,7 @@
+extern crate alloc;
+use alloc::{rc::Rc, vec::Vec};
+
 use crate::monoid::Monoid;
-use std::rc::Rc;
 
 mod fmt;
 mod insert;

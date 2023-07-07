@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 use super::Item;
 
@@ -6,7 +6,7 @@ use super::Item;
 pub struct LEByteArray<const L: usize>(pub [u8; L]);
 
 impl<const L: usize> ::core::fmt::Debug for LEByteArray<L> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut flipped = [0u8; 4];
         for i in 0..4 {
             flipped[i] = self.0[L - 1 - i];

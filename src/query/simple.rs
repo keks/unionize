@@ -38,13 +38,20 @@ impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
 #[cfg(test)]
 
 mod test {
+    extern crate std;
+    use std::{collections::HashSet, println};
+
+    extern crate alloc;
+    use alloc::format;
+
     use super::*;
+
     use crate::query::test::TestMonoid;
     use crate::tree::mem_rc_bounds::Node;
     use crate::Node as NodeTrait;
     use crate::{monoid::Monoid, range::Range};
+
     use proptest::{prelude::*, prop_assert_eq, proptest};
-    use std::collections::HashSet;
 
     proptest! {
         #[test]

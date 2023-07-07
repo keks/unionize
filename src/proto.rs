@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::{vec, vec::Vec};
+
 use crate::{
     item::Item,
     monoid::Monoid,
@@ -156,17 +159,19 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+    use alloc::{collections::BTreeSet, format, vec, vec::Vec};
+
+    extern crate std;
+    use std::{io::Write, print, println};
+
     use crate::{
         item::le_byte_array::LEByteArray,
         monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
         tree::mem_rc_bounds::Node,
     };
-    use proptest::{prelude::prop, prop_assert, proptest};
-    use std::{
-        collections::{BTreeSet, HashSet},
-        io::Write,
-    };
 
+    use proptest::{prelude::prop, prop_assert, proptest};
     use rand::prelude::*;
     use rand_chacha::ChaCha8Rng;
 
@@ -194,7 +199,7 @@ mod tests {
         let gen_start_time = std::time::Instant::now();
 
         print!("generating and adding items... ");
-        std::io::stdout().flush().unwrap();
+        //std::io::stdout().flush().unwrap();
         let mut rng = ChaCha8Rng::from_seed([23u8; 32]);
         for msg in &mut shared_msgs {
             rng.fill(&mut msg.0);
@@ -326,8 +331,8 @@ mod tests {
                 vec![fst, snd]
             };
 
-            let item_set_a: HashSet<u64> = HashSet::from_iter(items_party_a.iter().cloned());
-            let item_set_b: HashSet<u64> = HashSet::from_iter(items_party_b.iter().cloned());
+            let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
+            let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
             println!("a items: {item_set_a:?}");
             println!("b items: {item_set_b:?}");
@@ -439,8 +444,8 @@ mod tests {
             vec![fst, snd]
         };
 
-        let item_set_a: HashSet<u64> = HashSet::from_iter(items_party_a.iter().cloned());
-        let item_set_b: HashSet<u64> = HashSet::from_iter(items_party_b.iter().cloned());
+        let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
+        let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
         println!("a items: {item_set_a:?}");
         println!("b items: {item_set_b:?}");
@@ -540,8 +545,8 @@ mod tests {
             vec![fst, snd]
         };
 
-        let item_set_a: HashSet<u64> = HashSet::from_iter(items_party_a.iter().cloned());
-        let item_set_b: HashSet<u64> = HashSet::from_iter(items_party_b.iter().cloned());
+        let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
+        let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
         println!("a items: {item_set_a:?}");
         println!("b items: {item_set_b:?}");

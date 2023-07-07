@@ -2,7 +2,7 @@ use crate::proto::Encodable;
 
 use super::{Item, Monoid};
 
-pub trait SumItem: Item + std::ops::Add<Output = Self> {
+pub trait SumItem: Item + core::ops::Add<Output = Self> {
     fn zero() -> Self;
 }
 

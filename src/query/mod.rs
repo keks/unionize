@@ -4,7 +4,7 @@ pub mod split;
 
 use crate::{item::Item, monoid::Monoid, Node};
 
-pub trait Accumulator<M>: std::fmt::Debug
+pub trait Accumulator<M>: core::fmt::Debug
 where
     M: Monoid,
     M::Item: Item,

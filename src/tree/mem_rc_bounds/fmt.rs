@@ -1,8 +1,11 @@
+extern crate alloc;
+use alloc::{format, string::String, string::ToString, vec};
+
 use super::{ChildId, Node};
 use crate::monoid::Monoid;
 
-impl<M: Monoid> std::fmt::Debug for Node<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<M: Monoid> core::fmt::Debug for Node<M> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let tree = self.debug_tree();
         let style = sise::SerializerStyle {
             line_break: "\n",
@@ -17,11 +20,11 @@ impl<M: Monoid> std::fmt::Debug for Node<M> {
     }
 }
 
-impl<M: Monoid> std::fmt::Display for Node<M>
+impl<M: Monoid> core::fmt::Display for Node<M>
 where
-    M::Item: std::fmt::Display,
+    M::Item: core::fmt::Display,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let tree = self.display_tree();
         let style = sise::SerializerStyle {
             line_break: "\n",
@@ -38,7 +41,7 @@ where
 
 impl<M: Monoid> Node<M>
 where
-    M::Item: std::fmt::Display,
+    M::Item: core::fmt::Display,
 {
     fn display_tree(&self) -> sise::TreeNode {
         match self {

@@ -1,6 +1,8 @@
-use std::fmt::Debug;
-use std::io::Write;
-use std::marker::PhantomData;
+use core::fmt::Debug;
+use core::marker::PhantomData;
+
+extern crate alloc;
+use alloc::format;
 
 use sha2::{Digest, Sha256};
 
@@ -55,7 +57,7 @@ impl<I: Item> Monoid for CountingSha256Xor<I> {
 
     fn lift(item: &Self::Item) -> Self {
         let mut hasher = Sha256::default();
-        write!(hasher, "{item:?}").expect("error hashing");
+        hasher.update(&format!("{item:?}"));
         let hash = hasher.finalize();
         Self(1, hash.into(), PhantomData)
     }

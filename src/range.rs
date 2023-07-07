@@ -5,8 +5,8 @@ pub struct Range<T: Item>(pub(crate) T, pub(crate) T);
 
 impl<T: Item + Copy> Copy for Range<T> {}
 
-impl<T: Item> std::fmt::Display for Range<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T: Item> core::fmt::Display for Range<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let Self(from, to) = self;
         write!(f, "{from:?}..{to:?}")
     }

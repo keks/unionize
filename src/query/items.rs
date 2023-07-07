@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::{vec, vec::Vec};
+
 use crate::{monoid::Monoid, Node, NonNilNodeRef};
 
 use super::Accumulator;

@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::{vec, vec::Vec};
+
 use super::Accumulator;
 use crate::{item::Item, proto::ProtocolMonoid, range::Range, Node, NonNilNodeRef};
 
@@ -137,13 +140,20 @@ where
 
 #[cfg(test)]
 mod test {
+    extern crate std;
+    use std::{collections::HashSet, println};
+
+    extern crate alloc;
+    use alloc::format;
+
     use super::*;
+
     use crate::monoid::Monoid;
     use crate::query::{simple::SimpleAccumulator, test::TestMonoid};
     use crate::tree::mem_rc_bounds::Node;
     use crate::Node as NodeTrait;
+
     use proptest::{prelude::*, prop_assert_eq, prop_assume, proptest};
-    use std::collections::HashSet;
 
     proptest! {
         #[test]

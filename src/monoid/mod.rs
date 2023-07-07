@@ -3,8 +3,9 @@ pub mod hashxor;
 pub mod mulhash_xs233;
 pub mod sum;
 
+use core::fmt::Debug;
+
 use crate::item::Item;
-use std::fmt::Debug;
 
 pub trait Monoid: Clone + Debug + Eq {
     type Item: Item;

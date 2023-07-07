@@ -1,7 +1,8 @@
+extern crate alloc;
+use alloc::rc::Rc;
+
 use super::{Node, NodeData};
 use crate::monoid::Monoid;
-
-use std::rc::Rc;
 
 enum InsertUpstreamData<M: Monoid> {
     Update2Child(NodeData<M, 1>),

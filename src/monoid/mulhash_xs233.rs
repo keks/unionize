@@ -32,7 +32,7 @@ pub struct InvalidPoint;
 pub struct EncodedPoint<const L: usize>(pub [u8; L]);
 
 impl<const L: usize> ::core::fmt::Debug for EncodedPoint<L> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut short = [0u8; 4];
         for i in 0..4 {
             short[i] = self.0[i];
@@ -86,6 +86,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::println;
+
     use super::*;
 
     use rand::prelude::*;

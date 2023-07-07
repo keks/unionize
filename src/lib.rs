@@ -1,3 +1,5 @@
+#![no_std]
+
 use item::Item;
 use query::Accumulator;
 use range::Range;
@@ -10,7 +12,7 @@ pub mod monoid;
 pub mod query;
 pub mod tree;
 
-pub trait NonNilNodeRef<'a, M, N>: std::fmt::Debug + Clone
+pub trait NonNilNodeRef<'a, M, N>: core::fmt::Debug + Clone
 where
     M: monoid::Monoid,
     N: Node<M>,
@@ -28,7 +30,7 @@ where
     fn last_child<'b>(&'b self) -> &'b N;
 }
 
-pub trait Node<M>: std::fmt::Debug + Clone
+pub trait Node<M>: core::fmt::Debug + Clone
 where
     M: monoid::Monoid,
 {
