@@ -10,126 +10,113 @@ pub mod monoid;
 pub mod query;
 pub mod tree;
 
-pub trait Node<'a, M>: std::fmt::Debug + Clone
+pub trait NonNilNode<'a, M, N>: std::fmt::Debug + Clone
 where
-    M: monoid::Monoid + 'a,
-    Self: 'a,
+    M: monoid::Monoid,
+    N: Node<M>,
 {
-    type ChildIter: Iterator<Item = (&'a Self, &'a M::Item)>;
+    type ChildIter<'b>: Iterator<Item = (&'b N, &'b M::Item)>
+    where
+        N: 'b,
+        M::Item: 'b,
+        Self: 'b;
+
+    fn bounds(&self) -> (&M::Item, &M::Item);
+    fn min(&self) -> &M::Item;
+    fn max(&self) -> &M::Item;
+    fn children<'b>(&'b self) -> Self::ChildIter<'b>;
+    fn last_child<'b>(&'b self) -> &'b N;
+}
+
+pub trait Node<M>: std::fmt::Debug + Clone
+where
+    M: monoid::Monoid,
+{
+    // type ChildIter: Iterator<Item = (&'a Self, &'a M::Item)>;
+    type NonNilNode<'a>: NonNilNode<'a, M, Self>
+    where
+        Self: 'a;
 
     fn monoid(&self) -> &M;
     fn is_nil(&self) -> bool;
 
+    fn bounds(&self) -> Option<(&M::Item, &M::Item)>;
     fn min_item(&self) -> Option<&M::Item>;
     fn max_item(&self) -> Option<&M::Item>;
 
-    fn children(&'a self) -> Option<Self::ChildIter>;
+    // fn children(&'a self) -> Option<Self::ChildIter>;
     fn last_child(&self) -> Option<&Self>;
 
-    fn query<A: Accumulator<M>>(&'a self, query_range: &Range<M::Item>, state: &mut A) {
-        if self.is_nil() {
-            return;
-        }
+    fn node_contents<'a>(&'a self) -> Option<Self::NonNilNode<'a>>;
 
-        let min = self
-            .min_item()
-            .expect("only nil nodes return None here, and we know it's not nil");
-        let max = self
-            .max_item()
-            .expect("only nil nodes return None here, and we know it's not nil");
-
-        let has_overlap = query_range.has_overlap(self);
-        let is_subrange = query_range.fully_contains(self);
-
-        if !(has_overlap) {
-            return;
-        }
-
-        if query_range.from() == query_range.to() {
-            // querying full range, node is completely in range,
-            // but start at the boundary item, wrap around, and then end at the boundary item.
-
-            // first add items and children after the boundary
-            if let Some(new_query_range) = query_range.cap_right(min.clone()) {
-                self.query(&new_query_range, state);
-            }
-
-            // then add items and children before the boundary
-            if let Some(new_query_range) = query_range.cap_left(min.clone()) {
-                self.query(&new_query_range, state);
-            }
-
-            return;
-        } else if query_range.from() < query_range.to() {
-            if is_subrange {
-                state.add_xnode(self);
-                return;
-            }
-            // this is a non-wrapping query
-            for (child, item) in self.children().unwrap() {
-                child.query(query_range, state);
-                if query_range.contains(item) {
-                    state.add_item(&item);
-                }
-            }
-
-            self.last_child().unwrap().query(query_range, state);
+    fn query<'a, A: Accumulator<M>>(&'a self, query_range: &Range<M::Item>, state: &mut A) {
+        let non_nil_node: Self::NonNilNode<'a> = if let Some(non_nil_node) = self.node_contents() {
+            non_nil_node
         } else {
-            if is_subrange {
-                state.add_xnode(self);
-                return;
-            }
-            // we have a wrapping query
+            // in case of nil node
+            // println!("nil");
+            return;
+        };
 
-            for (child, item) in self.children().unwrap() {
-                if query_range.from() <= item {
-                    if let Some(next_query_range) = query_range.cap_right(item.clone()) {
-                        child.query(&next_query_range, state);
-                    }
+        let (min, max) = non_nil_node.bounds();
+        let children = non_nil_node.children();
+        let last_child = non_nil_node.last_child();
 
-                    // so it's >= query_range.from,
-                    // so it's in query_range.
-                    state.add_item(&item);
-                }
-            }
+        let partially_contains = query_range.partially_contains(min, max);
+        // println!(
+        //     "min:{min:?} max:{max:?} range:{query_range} partially_contains:{partially_contains}"
+        // );
 
-            // query the last subtree for elements before the wrap.
-            // and we have to restrict it to not include stuff from after the wrap
-            {
-                let last_child = self.last_child().unwrap();
-                if query_range.from() <= &max {
-                    let next_query_range = query_range
-                        .cap_right(max.next())
-                        .expect("guaranteed since max.next() > query_range.from()");
-                    last_child.query(&next_query_range, state);
-                }
+        if !partially_contains {
+            return;
+        }
+
+        if query_range.is_wrapping() {
+            if max >= query_range.from() {
+                let from = min.max(query_range.from());
+                let to = max.next();
+                let high_range = Range(from.clone(), to);
+                // println!("h {high_range}");
+                self.query(&high_range, state);
             }
 
-            for (child, item) in self.children().unwrap() {
-                if let Some(child_min) = child.min_item() {
-                    if child_min <= query_range.to() {
-                        if let Some(next_query_range) = query_range.cap_left(child_min.clone()) {
-                            child.query(&next_query_range, state);
-                        }
-                    }
-                }
-
-                if item < query_range.to() {
-                    state.add_item(&item);
-                }
+            if min < query_range.to() {
+                let from = min;
+                let to = max.next().min(query_range.to().clone());
+                let low_range = Range(from.clone(), to);
+                // println!("l {low_range}");
+                self.query(&low_range, state);
             }
+            // // first process items and children after the boundary
+            // if let Some(new_query_range) = query_range.cap_right(max.next()) {
+            //     self.query(&new_query_range, state);
+            // }
+            //
+            // // then process items and children before the boundary
+            // if let Some(new_query_range) = query_range.cap_left(M::Item::zero()) {
+            //     self.query(&new_query_range, state);
+            // }
 
-            // The last child may also contain nodes from after wrapping, but that is only the
-            // case if last_child.range.from < query_range.to().
-            let last_child = self.last_child().unwrap();
-            if let Some(last_child_min) = last_child.min_item() {
-                if last_child_min < query_range.to() {
-                    let next_query_range = query_range
-                        .cap_left(last_child_min.clone())
-                        .expect("guaranteed since min_item < query_range.to()");
-                    last_child.query(&next_query_range, state);
-                }
+            return;
+        }
+
+        if query_range.fully_contains(min, max) {
+            state.add_node(self);
+            return;
+        }
+
+        for (child, item) in children {
+            let child2: Self = child.clone();
+            child2.query(query_range, state);
+            if query_range.contains(item) {
+                // println!("i range:{query_range} min:{min:?} max:{max:?} i:{item:?}");
+                state.add_item(item);
             }
         }
+
+        last_child.query(query_range, state);
+
+        drop(last_child);
+        drop(non_nil_node);
     }
 }

@@ -1,4 +1,4 @@
-use crate::{monoid::Monoid, Node};
+use crate::{monoid::Monoid, Node, NonNilNode};
 
 use super::Accumulator;
 
@@ -20,12 +20,9 @@ impl<M: Monoid> SimpleAccumulator<M> {
 }
 
 impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
-    fn add_xnode<'a, N: Node<'a, M>>(&mut self, node: &'a N)
-    where
-        M: 'a,
-    {
-        if let Some(children) = node.children() {
-            for (child, item) in children {
+    fn add_node<'a, N: Node<M>>(&mut self, node: &'a N) {
+        if let Some(non_nil_node) = node.node_contents() {
+            for (child, item) in non_nil_node.children() {
                 self.0 = self.0.combine(child.monoid());
                 self.0 = self.0.combine(&M::lift(&item));
             }

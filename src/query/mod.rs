@@ -13,9 +13,8 @@ where
     M: Monoid,
     M::Item: Item,
 {
-    fn add_xnode<'a, N: Node<'a, M>>(&mut self, node: &'a N)
-    where
-        M: 'a;
+    fn add_node<'a, N: Node<M>>(&mut self, node: &'a N);
+
     fn add_item(&mut self, item: &M::Item);
 }
 

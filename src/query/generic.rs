@@ -1,20 +1,21 @@
 use crate::{
     monoid::{Monoid, Peano},
     range::Range,
-    Node,
+    Node, NonNilNode,
 };
 
 use super::Accumulator;
 
-pub fn query_range_generic<'a, M: Monoid + 'a, N: Node<'a, M>, A: Accumulator<M>>(
+pub fn query_range_generic<'a, M: Monoid + 'a, N: Node<M>, A: Accumulator<M>>(
     node: &'a N,
     query_range: &Range<M::Item>,
     state: &mut A,
 ) {
-    //println!("query range:{query_range:?} node@{node:p}");
-    if node.is_nil() {
+    let non_nil_node = if let Some(non_nil_node) = node.node_contents() {
+        non_nil_node
+    } else {
         return;
-    }
+    };
 
     let min = node.min_item().unwrap();
     let max = node.max_item().unwrap();
@@ -51,11 +52,11 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: Node<'a, M>, A: Accumulator<M>
         return;
     } else if query_range.from() < query_range.to() {
         if is_subrange {
-            state.add_xnode(node);
+            state.add_node(node);
             return;
         }
         // this is a non-wrapping query
-        for (child, item) in node.children().unwrap() {
+        for (child, item) in non_nil_node.children() {
             query_range_generic(child, query_range, state);
             if query_range.contains(item) {
                 state.add_item(&item);
@@ -66,12 +67,12 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: Node<'a, M>, A: Accumulator<M>
         query_range_generic(child, query_range, state);
     } else {
         if is_subrange {
-            state.add_xnode(node);
+            state.add_node(node);
             return;
         }
         // we have a wrapping query
 
-        for (child, item) in node.children().unwrap() {
+        for (child, item) in non_nil_node.children() {
             if query_range.from() <= item {
                 if let Some(next_query_range) = query_range.cap_right(item.clone()) {
                     query_range_generic(child, &next_query_range, state);
@@ -95,7 +96,7 @@ pub fn query_range_generic<'a, M: Monoid + 'a, N: Node<'a, M>, A: Accumulator<M>
             }
         }
 
-        for (child, item) in node.children().unwrap() {
+        for (child, item) in non_nil_node.children() {
             if let Some(min_item) = child.min_item() {
                 if min_item <= query_range.to() {
                     if let Some(next_query_range) = query_range.cap_left(min_item.clone()) {

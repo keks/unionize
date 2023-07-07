@@ -49,10 +49,10 @@ where
     }
 }
 
-pub fn first_message<'a, M, N>(root: &N) -> Result<Message<M>, M::Error>
+pub fn first_message<M, N>(root: &N) -> Result<Message<M>, M::Error>
 where
-    M: ProtocolMonoid + 'a,
-    N: Node<'a, M>,
+    M: ProtocolMonoid,
+    N: Node<M>,
 {
     let parts = match (root.min_item(), root.max_item()) {
         (Some(min), Some(max)) => {
@@ -75,15 +75,15 @@ where
     Ok(Message(parts))
 }
 
-pub fn respond_to_message<'a, M, N>(
-    root: &'a N,
+pub fn respond_to_message<M, N>(
+    root: &N,
     msg: &Message<M>,
     threshold: usize,
     split: fn(usize) -> Vec<usize>,
 ) -> Result<(Message<M>, Vec<M::Item>), M::Error>
 where
-    M: ProtocolMonoid + 'a,
-    N: Node<'a, M>,
+    M: ProtocolMonoid,
+    N: Node<M>,
 {
     let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
     let mut new_items = vec![];
@@ -126,15 +126,16 @@ where
                                 MessagePart::Fingerprint(fp.to_encoded()?),
                             ));
 
-                            if fp.count() == threshold {
-                                let mut acc = ItemsAccumulator::new();
-                                root.query(sub_range, &mut acc);
-                            }
+                            // if fp.count() == threshold {
+                            //     print!("items ");
+                            //     let mut acc = ItemsAccumulator::new();
+                            //     root.query(sub_range, &mut acc);
+                            // }
                         }
                     }
-                } else {
-                    let mut acc = ItemsAccumulator::new();
-                    root.query(range, &mut acc);
+                    // } else {
+                    // let mut acc = ItemsAccumulator::new();
+                    // root.query(range, &mut acc);
                 }
             }
             MessagePart::ItemSet(items, want_response) => {
@@ -349,6 +350,7 @@ mod tests {
                 }
 
 
+            println!("b-----");
                 let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
                 missing_items_b.extend(new_items.into_iter());
 
@@ -358,6 +360,7 @@ mod tests {
                 }
 
 
+            println!("a-----");
                 let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
                 missing_items_a.extend(new_items.into_iter());
 
@@ -415,6 +418,107 @@ mod tests {
             839, 936, 878, 846, 173, // 984
             631, 847, 983, 944, 9, 79, 915, 548, 521, 254, 441, 526, 8,
         ];
+
+        // the protocol sends a fingerprint for 984..997. the protocol thinks that both parties
+        // have the same, since the fingerprints match (because the sums of the values in range are
+        // the same, and they have the same count - 3).
+        // This was fixed by using the HashXorSha256 monoid instead of TestMonoid (which was just
+        // adding the numbers)
+
+        println!();
+
+        let split = |n| {
+            let snd = n / 2;
+            let fst = n - snd;
+
+            vec![fst, snd]
+        };
+
+        let item_set_a: HashSet<u64> = HashSet::from_iter(items_party_a.iter().cloned());
+        let item_set_b: HashSet<u64> = HashSet::from_iter(items_party_b.iter().cloned());
+
+        println!("a items: {item_set_a:?}");
+        println!("b items: {item_set_b:?}");
+
+        let mut root_a: Node<CountingSha256Xor<u64>> = Node::nil();
+        let mut root_b: Node<CountingSha256Xor<u64>> = Node::nil();
+
+        for item in item_set_a.iter().cloned() {
+            root_a = root_a.insert(item);
+        }
+
+        for item in item_set_b.iter().cloned() {
+            root_b = root_b.insert(item);
+        }
+
+        let mut msg = super::first_message(&root_a).unwrap();
+
+        let mut missing_items_a = vec![];
+        let mut missing_items_b = vec![];
+
+        loop {
+            println!("a msg: {msg:?}");
+            if msg.is_end() {
+                break;
+            }
+
+            let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, split).unwrap();
+            missing_items_b.extend(new_items.into_iter());
+
+            println!("b msg: {resp:?}");
+            if resp.is_end() {
+                break;
+            }
+
+            let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, split).unwrap();
+            missing_items_a.extend(new_items.into_iter());
+
+            msg = resp;
+        }
+
+        println!("a all: {item_set_a:?} + {missing_items_a:?}");
+        println!("b all: {item_set_b:?} + {missing_items_b:?}");
+
+        let mut all_items = item_set_a.clone();
+        let mut all_items_a = item_set_a.clone();
+        let mut all_items_b = item_set_b.clone();
+        all_items.extend(item_set_b.iter());
+        all_items_a.extend(missing_items_a.iter());
+        all_items_b.extend(missing_items_b.iter());
+
+        let mut a_all: Vec<u64> = Vec::from_iter(all_items_a.iter().cloned());
+        let mut b_all: Vec<u64> = Vec::from_iter(all_items_b.iter().cloned());
+        let mut all: Vec<u64> = Vec::from_iter(all_items.iter().cloned());
+
+        a_all.sort();
+        b_all.sort();
+        all.sort();
+
+        println!("\n  all vec: {all:?}");
+        println!(
+            "\na all vec: {a_all:?}, {:} {:}",
+            a_all == all,
+            all == a_all
+        );
+        println!(
+            "\nb all vec: {b_all:?}, {:} {:}",
+            b_all == all,
+            all == b_all
+        );
+        println!();
+
+        let a_eq = a_all == all;
+        let b_eq = b_all == all;
+
+        println!("{a_eq}, {b_eq}");
+        assert!(a_eq, "a does not match");
+        assert!(b_eq, "b does not match");
+    }
+
+    #[test]
+    fn repro_6() {
+        let items_party_a = vec![1, 20];
+        let items_party_b = vec![3, 21, 1, 2];
 
         // the protocol sends a fingerprint for 984..997. the protocol thinks that both parties
         // have the same, since the fingerprints match (because the sums of the values in range are

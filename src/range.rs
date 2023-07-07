@@ -1,7 +1,4 @@
-use crate::{
-    monoid::{Item, Monoid},
-    Node,
-};
+use crate::monoid::Item;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Range<T: Item>(pub(crate) T, pub(crate) T);
@@ -21,77 +18,52 @@ impl<T: Item> Range<T> {
         Self(to.clone(), from.clone())
     }
 
+    #[inline]
     pub fn from(&self) -> &T {
         &self.0
     }
+
+    #[inline]
     pub fn to(&self) -> &T {
         &self.1
     }
 
+    #[inline]
     pub(crate) fn is_wrapping(&self) -> bool {
         let Range(from, to) = self;
         from >= to
     }
 
+    #[inline]
     pub(crate) fn is_full(&self) -> bool {
         let Range(from, to) = self;
         from == to
     }
 
-    pub(crate) fn has_overlap<'a, N, M>(&self, node: &'a N) -> bool
-    where
-        M: Monoid<Item = T> + 'a,
-        N: Node<'a, M>,
-    {
-        if node.is_nil() {
-            return false;
-        }
-
-        let min = node
-            .min_item()
-            .expect("can only fail with nil node, node isn't nil");
-        let max = node
-            .max_item()
-            .expect("can only fail with nil node, node isn't nil");
-
-        max >= self.from() || min < self.to()
-    }
-
-    pub(crate) fn fully_contains<'a, M, N>(&self, node: &'a N) -> bool
-    where
-        M: Monoid<Item = T> + 'a,
-        N: Node<'a, M>,
-    {
-        if node.is_nil() {
-            return false;
-        }
-
-        let min = node
-            .min_item()
-            .expect("can only fail with nil node, node isn't nil");
-        let max = node
-            .max_item()
-            .expect("can only fail with nil node, node isn't nil");
-
-        if self.is_full() {
-            true
-        } else if self.is_wrapping() {
-            min >= self.from() || max < self.to()
-        } else {
-            min >= self.from() && max < self.to()
-        }
-    }
-
+    #[inline]
     pub(crate) fn contains(&self, item: &T) -> bool {
-        if self.is_full() {
-            return true;
-        }
-
         let Range(from, to) = self;
         if self.is_wrapping() {
             from <= item || item < to
         } else {
             from <= item && item < to
+        }
+    }
+
+    #[inline]
+    pub(crate) fn partially_contains(&self, min: &T, max: &T) -> bool {
+        min < self.to() || max >= self.from()
+    }
+
+    #[inline]
+    pub(crate) fn fully_contains(&self, min: &T, max: &T) -> bool {
+        let Range(from, to) = self;
+        if self.is_full() {
+            true
+        } else if self.is_wrapping() {
+            from <= min || max < to
+        } else {
+            from <= min && max < to
         }
     }
 
@@ -104,11 +76,11 @@ impl<T: Item> Range<T> {
                 (_, std::cmp::Ordering::Equal) => RangeCompare::IsUpperBound,
                 (std::cmp::Ordering::Equal, _) => RangeCompare::IsLowerBound,
 
-                (_, std::cmp::Ordering::Less) | (std::cmp::Ordering::Greater, _) => {
+                (std::cmp::Ordering::Less, _) | (_, std::cmp::Ordering::Greater) => {
                     RangeCompare::Included
                 }
 
-                (std::cmp::Ordering::Less, std::cmp::Ordering::Greater) => RangeCompare::InBetween,
+                (std::cmp::Ordering::Greater, std::cmp::Ordering::Less) => RangeCompare::InBetween,
             }
         } else {
             match (from.cmp(item), to.cmp(item)) {
@@ -135,18 +107,22 @@ impl<T: Item> Range<T> {
             RangeCompare::IsUpperBound | RangeCompare::Included => {
                 Some(Self(self.0.clone(), new_end))
             }
-            RangeCompare::GreaterThan | RangeCompare::InBetween => Some(self.clone()),
-            RangeCompare::IsLowerBound | RangeCompare::LessThan => None,
+            RangeCompare::GreaterThan => Some(self.clone()),
+            RangeCompare::IsLowerBound | RangeCompare::LessThan | RangeCompare::InBetween => None,
         }
     }
 
     pub(crate) fn cap_left(&self, new_start: T) -> Option<Self> {
-        match self.cmp(&new_start) {
+        let cmp = self.cmp(&new_start);
+        println!("cap_left range:{self:?} new_start:{new_start:?} cmp:{cmp:?}");
+        match cmp {
             RangeCompare::IsLowerBound | RangeCompare::Included => {
                 Some(Self(new_start, self.1.clone()))
             }
-            RangeCompare::LessThan | RangeCompare::InBetween => Some(self.clone()),
-            RangeCompare::IsUpperBound | RangeCompare::GreaterThan => None,
+            RangeCompare::LessThan => Some(self.clone()),
+            RangeCompare::IsUpperBound | RangeCompare::GreaterThan | RangeCompare::InBetween => {
+                None
+            }
         }
     }
 }

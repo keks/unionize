@@ -1,5 +1,5 @@
 use super::Accumulator;
-use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, Node};
+use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, Node, NonNilNode};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>
@@ -76,14 +76,12 @@ where
     M: ProtocolMonoid,
     M::Item: Item,
 {
-    fn add_xnode<'b, N: Node<'b, M>>(&mut self, node: &'b N)
-    where
-        M: 'b,
-    {
-        //println!("split add_xnode {node:?}");
-        if node.is_nil() {
+    fn add_node<'b, N: Node<M>>(&mut self, node: &'b N) {
+        let non_nil_node = if let Some(non_nil_node) = node.node_contents() {
+            non_nil_node
+        } else {
             return;
-        }
+        };
 
         // I think this assertion should always hold if the caller doesn't mess up.
         assert!(
@@ -114,12 +112,12 @@ where
             *current_result = current_result.combine(&node_monoid);
             self.advance_bucket();
         } else {
-            for (child, item) in node.children().unwrap() {
-                self.add_xnode(child);
+            for (child, item) in non_nil_node.children() {
+                self.add_node(child);
                 self.add_item(&item);
             }
 
-            self.add_xnode(node.last_child().unwrap());
+            self.add_node(non_nil_node.last_child());
         }
 
         // println!("buckets:{:?}", self.results);
