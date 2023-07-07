@@ -25,3 +25,4 @@ xs233 = "0.3"
 avx2 = ["xs233/avx2"]
 sse41 = ["xs233/sse41"]
 pclmul = ["xs233/pclmul"]
+default = ["sse41"]
