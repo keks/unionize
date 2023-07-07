@@ -171,6 +171,26 @@ impl<M: Monoid, const N: usize> NodeData<M, N> {
     pub fn get_item(&self, idx: usize) -> Option<M::Item> {
         self.items.get(idx).cloned()
     }
+
+    pub(crate) fn min_item(&self) -> &M::Item {
+        match &self.children[0].as_ref() {
+            Node::Node2(node_data) => node_data.min_item(),
+            Node::Node3(node_data) => node_data.min_item(),
+            Node::Nil(_) => &self.items[0],
+        }
+    }
+
+    pub(crate) fn max_item(&self) -> &M::Item {
+        match &self.last_child.as_ref() {
+            Node::Node2(node_data) => node_data.max_item(),
+            Node::Node3(node_data) => node_data.max_item(),
+            Node::Nil(_) => &self.items[N - 1],
+        }
+    }
+
+    pub(crate) fn bounds(&self) -> (&M::Item, &M::Item) {
+        (self.min_item(), self.max_item())
+    }
 }
 
 impl<M: Monoid> NodeData<M, 1> {

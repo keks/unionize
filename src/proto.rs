@@ -1,11 +1,10 @@
 use crate::{
-    monoid::{Item, Monoid, Peano},
+    item::Item,
+    monoid::Monoid,
     query::{items::ItemsAccumulator, simple::SimpleAccumulator, split::SplitAccumulator},
     range::Range,
-    Node,
+    Node, NonNilNodeRef,
 };
-
-impl Item for u64 {}
 
 pub trait ProtocolMonoid: Monoid + Encodable {
     fn count(&self) -> usize;
@@ -54,8 +53,9 @@ where
     M: ProtocolMonoid,
     N: Node<M>,
 {
-    let parts = match (root.min_item(), root.max_item()) {
-        (Some(min), Some(max)) => {
+    let parts = match root.node_contents() {
+        Some(non_nil_node) => {
+            let (min, max) = non_nil_node.bounds();
             let range = Range(min.clone(), max.next());
             let full_monoid = MessagePart::Fingerprint(root.monoid().to_encoded()?);
             vec![
@@ -63,13 +63,12 @@ where
                 (range.reverse(), MessagePart::ItemSet(vec![], true)),
             ]
         }
-        (None, None) => {
+        None => {
             vec![(
                 Range(M::Item::zero(), M::Item::zero()),
                 MessagePart::ItemSet(vec![], true),
             )]
         }
-        _ => unreachable!(),
     };
 
     Ok(Message(parts))
@@ -158,7 +157,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        hash_item::LEByteArray,
+        item::le_byte_array::LEByteArray,
         monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
         tree::mem_rc_bounds::Node,
     };
@@ -189,6 +188,9 @@ mod tests {
         let mut bob_tree: Node<CountingMonoid<MulHashMonoid<xs233::xsk233::Xsk233Point>>> =
             Node::nil();
 
+        let statm = procinfo::pid::statm_self().unwrap();
+        println!("current memory usage: {statm:#?}");
+
         let gen_start_time = std::time::Instant::now();
 
         print!("generating and adding items... ");
@@ -213,6 +215,9 @@ mod tests {
         // println!("bobs messages: {bobs_msgs:?}\n");
         // println!("alices tree: {alice_tree:?}");
         std::io::stdout().flush().unwrap();
+
+        let statm = procinfo::pid::statm_self().unwrap();
+        println!("current memory usage: {statm:#?}");
 
         let mut msg = super::first_message(&alice_tree).unwrap();
 

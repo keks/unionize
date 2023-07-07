@@ -1,12 +1,8 @@
-pub mod generic;
 pub mod items;
 pub mod simple;
 pub mod split;
 
-use crate::{
-    monoid::{Item, Monoid},
-    Node,
-};
+use crate::{item::Item, monoid::Monoid, Node};
 
 pub trait Accumulator<M>: std::fmt::Debug
 where

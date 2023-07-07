@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::monoid::{Item, Peano};
+use super::Item;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct LEByteArray<const L: usize>(pub [u8; L]);
@@ -46,9 +46,7 @@ impl<const L: usize> Ord for LEByteArray<L> {
     }
 }
 
-impl<const L: usize> Item for LEByteArray<L> {}
-
-impl<const L: usize> Peano for LEByteArray<L> {
+impl<const L: usize> Item for LEByteArray<L> {
     fn zero() -> Self {
         LEByteArray([0u8; L])
     }

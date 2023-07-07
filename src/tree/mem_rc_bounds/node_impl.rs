@@ -6,8 +6,7 @@ impl<M> NodeTrait<M> for Node<M>
 where
     M: Monoid,
 {
-    // type ChildIter = ChildIter<'a, M>;
-    type NonNilNode<'a> = NonNilNode<'a, M> where M: 'a;
+    type NonNilNodeRef<'a> = NonNilNodeRef<'a, M> where M: 'a;
 
     fn monoid(&self) -> &M {
         match self {
@@ -21,42 +20,10 @@ where
         matches!(self, Node::Nil(_))
     }
 
-    fn bounds(&self) -> Option<(&M::Item, &M::Item)> {
+    fn node_contents<'a>(&'a self) -> Option<NonNilNodeRef<'a, M>> {
         match self {
-            Node::Node2(node_data) => Some((&node_data.min, &node_data.max)),
-            Node::Node3(node_data) => Some((&node_data.min, &node_data.max)),
-            Node::Nil(_) => None,
-        }
-    }
-
-    fn min_item(&self) -> Option<&M::Item> {
-        match self {
-            Node::Node2(node_data) => Some(&node_data.min),
-            Node::Node3(node_data) => Some(&node_data.min),
-            Node::Nil(_) => None,
-        }
-    }
-
-    fn max_item(&self) -> Option<&M::Item> {
-        match self {
-            Node::Node2(node_data) => Some(&node_data.max),
-            Node::Node3(node_data) => Some(&node_data.max),
-            Node::Nil(_) => None,
-        }
-    }
-
-    fn last_child(&self) -> Option<&Self> {
-        match self {
-            Node::Node2(node_data) => Some(&node_data.last_child),
-            Node::Node3(node_data) => Some(&node_data.last_child),
-            Node::Nil(_) => None,
-        }
-    }
-
-    fn node_contents<'a>(&'a self) -> Option<NonNilNode<'a, M>> {
-        match self {
-            Node::Node2(node_data) => Some(NonNilNode::Node2(&node_data)),
-            Node::Node3(node_data) => Some(NonNilNode::Node3(&node_data)),
+            Node::Node2(node_data) => Some(NonNilNodeRef::Node2(&node_data)),
+            Node::Node3(node_data) => Some(NonNilNodeRef::Node3(&node_data)),
             Node::Nil(_) => None,
         }
     }
@@ -64,7 +31,7 @@ where
 
 #[derive(Clone)]
 pub struct ChildIter<'a, M: Monoid> {
-    node: NonNilNode<'a, M>,
+    node: NonNilNodeRef<'a, M>,
     offs: usize,
 }
 
@@ -76,11 +43,11 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let opt_res = match &self.node {
-            NonNilNode::Node2(node_data) => (
+            NonNilNodeRef::Node2(node_data) => (
                 node_data.children.get(self.offs),
                 node_data.items.get(self.offs),
             ),
-            NonNilNode::Node3(node_data) => (
+            NonNilNodeRef::Node3(node_data) => (
                 node_data.children.get(self.offs),
                 node_data.items.get(self.offs),
             ),
@@ -98,12 +65,12 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub enum NonNilNode<'a, M: Monoid> {
+pub enum NonNilNodeRef<'a, M: Monoid> {
     Node2(&'a NodeData<M, 1>),
     Node3(&'a NodeData<M, 2>),
 }
 
-impl<'a, M> crate::NonNilNode<'a, M, Node<M>> for NonNilNode<'a, M>
+impl<'a, M> crate::NonNilNodeRef<'a, M, Node<M>> for NonNilNodeRef<'a, M>
 where
     M: Monoid + 'a,
 {
@@ -114,22 +81,22 @@ where
 
     fn min(&self) -> &<M as Monoid>::Item {
         match self {
-            NonNilNode::Node2(node_data) => &node_data.min,
-            NonNilNode::Node3(node_data) => &node_data.min,
+            NonNilNodeRef::Node2(node_data) => &node_data.min,
+            NonNilNodeRef::Node3(node_data) => &node_data.min,
         }
     }
 
     fn max(&self) -> &<M as Monoid>::Item {
         match self {
-            NonNilNode::Node2(node_data) => &node_data.max,
-            NonNilNode::Node3(node_data) => &node_data.max,
+            NonNilNodeRef::Node2(node_data) => &node_data.max,
+            NonNilNodeRef::Node3(node_data) => &node_data.max,
         }
     }
 
     fn bounds(&self) -> (&<M as Monoid>::Item, &<M as Monoid>::Item) {
         match self {
-            NonNilNode::Node2(node_data) => (&node_data.min, &node_data.max),
-            NonNilNode::Node3(node_data) => (&node_data.min, &node_data.max),
+            NonNilNodeRef::Node2(node_data) => (&node_data.min, &node_data.max),
+            NonNilNodeRef::Node3(node_data) => (&node_data.min, &node_data.max),
         }
     }
 
@@ -142,8 +109,8 @@ where
 
     fn last_child<'b>(&'b self) -> &'b Node<M> {
         match self {
-            NonNilNode::Node2(node_data) => &node_data.last_child,
-            NonNilNode::Node3(node_data) => &node_data.last_child,
+            NonNilNodeRef::Node2(node_data) => &node_data.last_child,
+            NonNilNodeRef::Node3(node_data) => &node_data.last_child,
         }
     }
 }

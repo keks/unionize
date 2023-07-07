@@ -1,5 +1,5 @@
 use super::Accumulator;
-use crate::{monoid::Item, proto::ProtocolMonoid, range::Range, Node, NonNilNode};
+use crate::{item::Item, proto::ProtocolMonoid, range::Range, Node, NonNilNodeRef};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>
@@ -90,7 +90,7 @@ where
         );
 
         if self.update_ranges {
-            let next_item = node.min_item().unwrap();
+            let next_item = non_nil_node.min();
             self.ranges[self.current_offset - 1].1 = next_item.clone();
             self.ranges[self.current_offset].0 = next_item.clone();
             self.update_ranges = false;
@@ -139,9 +139,9 @@ where
 mod test {
     use super::*;
     use crate::monoid::Monoid;
-    use crate::query::generic::query_range_generic;
     use crate::query::{simple::SimpleAccumulator, test::TestMonoid};
     use crate::tree::mem_rc_bounds::Node;
+    use crate::Node as NodeTrait;
     use proptest::{prelude::*, prop_assert_eq, prop_assume, proptest};
     use std::collections::HashSet;
 
@@ -165,7 +165,7 @@ mod test {
             println!("in tree form: {:}", root);
 
             let mut simple_acc = SimpleAccumulator::new();
-            query_range_generic(&root, &query_range, &mut simple_acc);
+            root.query(&query_range, &mut simple_acc);
             let query_result = simple_acc.into_result();
 
             // make sure we don't glitch on empty splits
@@ -177,7 +177,7 @@ mod test {
 
             let split_sizes = &[first_bucket_count, second_bucket_count];
             let mut acc = SplitAccumulator::new(&query_range, split_sizes);
-            query_range_generic(&root, &query_range, &mut acc);
+            root.query(&query_range, &mut acc);
 
             // assuming we the splits are >0 (as per the count>1 assumption above), assert that we
             // don't get ranges of the form x..x due to cutting down the range. x..x means full
@@ -188,8 +188,8 @@ mod test {
             let mut simple1 = SimpleAccumulator::new();
             let mut simple2 = SimpleAccumulator::new();
 
-            query_range_generic(&root, &acc.ranges()[0], &mut simple1);
-            query_range_generic(&root, &acc.ranges()[1], &mut simple2);
+            root.query(&acc.ranges()[0], &mut simple1);
+            root.query(&acc.ranges()[1], &mut simple2);
 
             println!("query range: {query_range}");
             println!("split counts: {split_sizes:?}");

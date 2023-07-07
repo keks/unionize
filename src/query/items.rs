@@ -1,4 +1,4 @@
-use crate::{monoid::Monoid, Node, NonNilNode};
+use crate::{monoid::Monoid, Node, NonNilNodeRef};
 
 use super::Accumulator;
 
@@ -37,7 +37,7 @@ where
             self.items.push(item.clone());
         }
 
-        self.add_node(node.last_child().unwrap())
+        self.add_node(non_nil_node.last_child())
     }
 
     fn add_item(&mut self, item: &<M as Monoid>::Item) {

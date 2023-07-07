@@ -1,4 +1,4 @@
-use crate::{monoid::Monoid, Node, NonNilNode};
+use crate::{monoid::Monoid, Node, NonNilNodeRef};
 
 use super::Accumulator;
 
@@ -27,7 +27,7 @@ impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
                 self.0 = self.0.combine(&M::lift(&item));
             }
 
-            self.0 = self.0.combine(node.last_child().unwrap().monoid());
+            self.0 = self.0.combine(non_nil_node.last_child().monoid());
         }
     }
 
@@ -39,9 +39,9 @@ impl<M: Monoid> Accumulator<M> for SimpleAccumulator<M> {
 
 mod test {
     use super::*;
-    use crate::query::generic::query_range_generic;
     use crate::query::test::TestMonoid;
     use crate::tree::mem_rc_bounds::Node;
+    use crate::Node as NodeTrait;
     use crate::{monoid::Monoid, range::Range};
     use proptest::{prelude::*, prop_assert_eq, proptest};
     use std::collections::HashSet;
@@ -64,7 +64,7 @@ mod test {
 
 
             let mut acc = SimpleAccumulator::new();
-            query_range_generic(&root, &query_range, &mut acc);
+            root.query(&query_range, &mut acc);
 
             let expected = item_set.iter().filter(|item|query_range.contains(item)).fold(TestMonoid::neutral(), |acc, item|acc.combine(&TestMonoid::lift(item)));
             prop_assert_eq!(&expected, acc.result());

@@ -1,29 +1,9 @@
-use crate::hash_item::LEByteArray;
+use crate::item::le_byte_array::LEByteArray;
 
-use super::{Item, Monoid, Peano};
+use super::Monoid;
 
 #[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct MulHashMonoid<P: xs233::Point>(P);
-
-impl<const L: usize> Item for [u8; L] {}
-
-impl<const L: usize> Peano for [u8; L] {
-    fn zero() -> Self {
-        [0u8; L]
-    }
-
-    fn next(&self) -> Self {
-        let mut result: [u8; L] = self.clone();
-        for i in 0..L {
-            let (sum, did_overflow) = result[i].overflowing_add(1);
-            result[i] = sum;
-            if !did_overflow {
-                break;
-            }
-        }
-        result
-    }
-}
 
 impl<const L: usize, P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static> Monoid
     for MulHashMonoid<P>
