@@ -267,10 +267,10 @@ mod tests {
         all_items_alice.extend(missing_items_alice.iter());
         all_items_bob.extend(missing_items_bob.iter());
 
-        let bob_lacks: Vec<_> = all_items.difference(&all_items_bob).collect();
-        println!("bob lacks {} messages: {bob_lacks:?}", bob_lacks.len());
-        let bob_superfluous: Vec<_> = all_items_bob.difference(&all_items).collect();
-        println!("bob has too many: {bob_superfluous:?}");
+        // let bob_lacks: Vec<_> = all_items.difference(&all_items_bob).collect();
+        // println!("bob lacks {} messages: {bob_lacks:?}", bob_lacks.len());
+        // let bob_superfluous: Vec<_> = all_items_bob.difference(&all_items).collect();
+        // println!("bob has too many: {bob_superfluous:?}");
 
         let all_len = all_items.len();
         let alice_all_len = all_items_alice.len();

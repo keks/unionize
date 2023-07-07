@@ -43,28 +43,44 @@ impl<T: Item> Range<T> {
     #[inline]
     pub(crate) fn contains(&self, item: &T) -> bool {
         let Range(from, to) = self;
-        if self.is_wrapping() {
-            from <= item || item < to
-        } else {
-            from <= item && item < to
-        }
+        let wrapping_case = from <= item || item < to;
+        let non_wrapping_case = from <= item && item < to;
+        let is_wrapping = self.is_wrapping();
+
+        (is_wrapping && wrapping_case) || non_wrapping_case
+        // equivalent to:
+        // if self.is_wrapping() {
+        //     wrapping_case
+        // } else {
+        //     non_wrapping_case
+        // }
     }
 
     #[inline]
     pub(crate) fn partially_contains(&self, min: &T, max: &T) -> bool {
-        min < self.to() || max >= self.from()
+        let node_bounds_around_query_range = min < self.from() && self.to() <= max;
+
+        self.contains(min) || self.contains(max) || node_bounds_around_query_range
     }
 
     #[inline]
     pub(crate) fn fully_contains(&self, min: &T, max: &T) -> bool {
         let Range(from, to) = self;
-        if self.is_full() {
-            true
-        } else if self.is_wrapping() {
-            from <= min || max < to
-        } else {
-            from <= min && max < to
-        }
+        let is_full = self.is_full();
+        let is_wrapping = self.is_wrapping();
+
+        let wrapping_case = from <= min || max < to;
+        let non_wrapping_case = from <= min && max < to;
+
+        is_full || (is_wrapping && wrapping_case) || non_wrapping_case
+        // equivalent to:
+        // if self.is_full() {
+        //     true
+        // } else if self.is_wrapping() {
+        //     wrapping_case
+        // } else {
+        //     non_wrapping_case
+        // }
     }
 
     pub(crate) fn cmp(&self, item: &T) -> RangeCompare {

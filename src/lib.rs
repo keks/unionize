@@ -50,52 +50,38 @@ where
     fn node_contents<'a>(&'a self) -> Option<Self::NonNilNode<'a>>;
 
     fn query<'a, A: Accumulator<M>>(&'a self, query_range: &Range<M::Item>, state: &mut A) {
-        let non_nil_node: Self::NonNilNode<'a> = if let Some(non_nil_node) = self.node_contents() {
+        let node: Self::NonNilNode<'a> = if let Some(non_nil_node) = self.node_contents() {
             non_nil_node
         } else {
             // in case of nil node
-            // println!("nil");
             return;
         };
 
-        let (min, max) = non_nil_node.bounds();
-        let children = non_nil_node.children();
-        let last_child = non_nil_node.last_child();
+        let (min, max) = node.bounds();
 
-        let partially_contains = query_range.partially_contains(min, max);
-        // println!(
-        //     "min:{min:?} max:{max:?} range:{query_range} partially_contains:{partially_contains}"
-        // );
-
-        if !partially_contains {
+        if !query_range.partially_contains(min, max) {
             return;
         }
 
         if query_range.is_wrapping() {
+            // this block achieves two things.
+            // first, we make sure we process the items in query order, not item order.
+            //   that means that with wrapping queries, we first add the items before the wrap, and
+            //   then the items after it.
+            // second, we make sure we don't have to deal with wrapping queries all over the place.
+            //   they are annoying and doing it this way means we only need to take care of them once.
+
             if max >= query_range.from() {
-                let from = min.max(query_range.from());
-                let to = max.next();
-                let high_range = Range(from.clone(), to);
+                let high_range = Range(query_range.from().clone(), max.next());
                 // println!("h {high_range}");
                 self.query(&high_range, state);
             }
 
             if min < query_range.to() {
-                let from = min;
-                let to = max.next().min(query_range.to().clone());
-                let low_range = Range(from.clone(), to);
+                let low_range = Range(min.clone(), query_range.to().clone());
                 // println!("l {low_range}");
                 self.query(&low_range, state);
             }
-            // // first process items and children after the boundary
-            // if let Some(new_query_range) = query_range.cap_right(max.next()) {
-            //     self.query(&new_query_range, state);
-            // }
-            //
-            // // then process items and children before the boundary
-            // if let Some(new_query_range) = query_range.cap_left(M::Item::zero()) {
-            //     self.query(&new_query_range, state);
-            // }
 
             return;
         }
@@ -105,18 +91,16 @@ where
             return;
         }
 
-        for (child, item) in children {
-            let child2: Self = child.clone();
-            child2.query(query_range, state);
+        // println!("min:{min:?} max:{max:?} range:{query_range}");
+
+        for (child, item) in node.children() {
+            child.query(query_range, state);
             if query_range.contains(item) {
                 // println!("i range:{query_range} min:{min:?} max:{max:?} i:{item:?}");
                 state.add_item(item);
             }
         }
 
-        last_child.query(query_range, state);
-
-        drop(last_child);
-        drop(non_nil_node);
+        node.last_child().query(query_range, state);
     }
 }

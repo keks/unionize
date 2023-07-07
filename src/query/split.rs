@@ -97,15 +97,10 @@ where
         }
 
         let current_split_size = self.current_split_size();
-        // let current_offset = self.current_offset;
         let current_result = self.current_result();
         let space_left = current_split_size - current_result.count();
 
         let node_monoid = node.monoid();
-
-        // println!(
-        //     "space_left:{space_left} node_monoid:{node_monoid:?} current_offset:{current_offset}",
-        // );
         if node_monoid.count() < space_left {
             *current_result = current_result.combine(&node_monoid);
         } else if node_monoid.count() == space_left {
@@ -119,8 +114,6 @@ where
 
             self.add_node(non_nil_node.last_child());
         }
-
-        // println!("buckets:{:?}", self.results);
     }
 
     fn add_item(&mut self, item: &M::Item) {
