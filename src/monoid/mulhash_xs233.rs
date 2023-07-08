@@ -9,6 +9,11 @@ use crate::{
 
 use super::Monoid;
 
+/// MulHashMonoid lifts values by mapping them to points on an elliptic curve using a
+/// decoding-rejection-sampling technique (i.e. we try to decode and if that fails try again with a
+/// deterministically changed item).
+/// Combining works by adding the curve points.
+/// This should be cryptographically secure. I hope.
 #[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct MulHashMonoid<P: xs233::Point>(P);
 
@@ -32,6 +37,7 @@ impl<const L: usize, P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static> Mon
     }
 }
 
+/// This error is returned when point decoding fails.
 #[derive(Debug, Copy, Clone)]
 pub struct InvalidPoint;
 
@@ -55,6 +61,8 @@ impl std::error::Error for InvalidPoint {
     }
 }
 
+/// Represents an encoded point. This representation is far more compact than MulHashMonoid, but
+/// can't be used for computation. Good for serialization.
 #[derive(Clone, PartialEq, Eq)]
 pub struct EncodedPoint<const L: usize>(pub [u8; L]);
 

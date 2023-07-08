@@ -12,6 +12,10 @@ use crate::{
     protocol::{Encodable, ProtocolMonoid},
 };
 
+/// This monoid lifts by hashing the debug string of an item and combines by XORing.
+/// Should probably only be used for tests.
+/// One reason this is needed because if we tests by XORing simple numbers, collisions are very
+/// likely.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct CountingSha256Xor<I: Item>(usize, [u8; 32], PhantomData<I>);
 

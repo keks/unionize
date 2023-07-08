@@ -2,6 +2,7 @@ use core::cmp::Ordering;
 
 use super::Item;
 
+/// Implements [`Ord`] for byte slices. Compares in little endian byte order.
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub struct LEByteArray<const L: usize>(pub [u8; L]);
 

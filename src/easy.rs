@@ -1,3 +1,5 @@
+/// Good choices for types when aiming for uniformly distributed items and aiming for
+/// collision-resistance.
 pub mod uniform {
     use crate::{
         item::le_byte_array::LEByteArray,

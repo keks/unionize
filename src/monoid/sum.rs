@@ -4,9 +4,11 @@ use crate::protocol::{DecodeError, Encodable, EncodeError};
 
 use super::{Item, Monoid};
 
+/// Items that can simply be added.
 pub trait SumItem: Item + core::ops::Add<Output = Self> {}
 impl<I> SumItem for I where I: Item + core::ops::Add<Output = Self> {}
 
+/// Lifting is a no-op and combining is adding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SumMonoid<I: SumItem>(pub I);
 

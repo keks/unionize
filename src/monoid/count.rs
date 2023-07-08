@@ -3,6 +3,7 @@ use crate::{
     protocol::{DecodeError, Encodable, EncodeError, ProtocolMonoid},
 };
 
+/// Wraps another monoid and attaches an item counter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CountingMonoid<M: Monoid>(usize, M);
 

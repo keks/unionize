@@ -6,19 +6,29 @@ use crate::Item;
 use crate::Monoid;
 use crate::Range;
 
+/// Represents a 2-3-tree, which is just a narrow BTree. The items are the keys, and each node
+/// holds a monoid that combines all the items in it.
 pub trait Node<M>: core::fmt::Debug + Clone
 where
     M: Monoid,
 {
+    /// Often times, it's annoying to deal with nil nodes, so we have a type that can reference
+    /// inner nodes only. This moves nil checks to one place and hopefully also speeds up the code.
     type NonNilNodeRef<'a>: NonNilNodeRef<'a, M, Self>
     where
         Self: 'a;
 
+    /// The fingerprint monoid representing all items in this node's subtree.
     fn monoid(&self) -> &M;
+
+    /// Whether this is a nil node.
     fn is_nil(&self) -> bool;
 
+    /// Returns a NonNilNodeRef if this is not a nil node, else returns None.
     fn node_contents<'a>(&'a self) -> Option<Self::NonNilNodeRef<'a>>;
 
+    /// Query the tree. This will add the monoids covering all items in range to the accumulator.
+    /// The query result an be read from the accumulator.
     fn query<'a, A: Accumulator<M>>(&'a self, range: &Range<M::Item>, state: &mut A) {
         let node: Self::NonNilNodeRef<'a> = if let Some(non_nil_node) = self.node_contents() {
             non_nil_node
