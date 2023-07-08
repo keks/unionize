@@ -4,7 +4,7 @@ use core::convert::Infallible;
 
 use crate::{
     item::le_byte_array::LEByteArray,
-    protocol::{DecodeError, EncodeError},
+    protocol::{encoding::AsDestMutRef, DecodeError, EncodeError},
 };
 
 use super::Monoid;
@@ -98,14 +98,14 @@ where
         }
     }
 
-    fn batch_encode(
+    fn batch_encode<Dst: AsDestMutRef<Self::Encoded>>(
         src: &[Self],
-        dst: &mut [Self::Encoded],
+        dst: &mut [Dst],
     ) -> Result<(), EncodeError<Self::EncodeError>> {
         assert_eq!(src.len(), dst.len());
 
         for i in 0..src.len() {
-            P::encode(&src[i].0, &mut dst[i].0);
+            P::encode(&src[i].0, &mut dst[i].as_dest_mut_ref().0);
         }
 
         Ok(())

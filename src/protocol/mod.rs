@@ -22,20 +22,84 @@ pub trait ProtocolMonoid: Monoid + Encodable {
 }
 
 #[derive(Debug, Clone)]
-pub enum MessagePart<M: ProtocolMonoid> {
-    Fingerprint(M::Encoded),
-    ItemSet(Vec<M::Item>, bool),
+pub struct FingerprintRecord<M: ProtocolMonoid> {
+    range: Range<M::Item>,
+    fp: M::Encoded,
+}
+
+impl<M: ProtocolMonoid> FingerprintRecord<M> {
+    pub fn new(range: Range<M::Item>, fp: M::Encoded) -> Self {
+        Self { range, fp }
+    }
+
+    pub fn range(&self) -> &Range<M::Item> {
+        &self.range
+    }
+
+    pub fn fp(&self) -> &M::Encoded {
+        &self.fp
+    }
+}
+
+impl<M: ProtocolMonoid> encoding::AsDestMutRef<M::Encoded> for FingerprintRecord<M> {
+    fn as_dest_mut_ref(&mut self) -> &mut M::Encoded {
+        &mut self.fp
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct Message<M: ProtocolMonoid + Encodable>(pub Vec<(Range<M::Item>, MessagePart<M>)>);
+pub struct ItemSetRecord<M: Monoid> {
+    range: Range<M::Item>,
+    items: Vec<M::Item>,
+    want_response: bool,
+}
+
+impl<M: Monoid> ItemSetRecord<M> {
+    pub fn new(range: Range<M::Item>, items: Vec<M::Item>, want_response: bool) -> Self {
+        Self {
+            range,
+            items,
+            want_response,
+        }
+    }
+
+    pub fn range(&self) -> &Range<M::Item> {
+        &self.range
+    }
+
+    pub fn items(&self) -> &Vec<M::Item> {
+        &self.items
+    }
+
+    pub fn want_response(&self) -> bool {
+        self.want_response
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Message<M: ProtocolMonoid + Encodable> {
+    fps: Vec<FingerprintRecord<M>>,
+    item_sets: Vec<ItemSetRecord<M>>,
+}
 
 impl<M> Message<M>
 where
     M: ProtocolMonoid,
 {
+    pub fn new(fps: Vec<FingerprintRecord<M>>, item_sets: Vec<ItemSetRecord<M>>) -> Self {
+        Self { fps, item_sets }
+    }
+
     pub fn is_end(&self) -> bool {
-        self.0.is_empty()
+        self.fps.is_empty() && self.item_sets.is_empty()
+    }
+
+    pub fn fingerprints(&self) -> &Vec<FingerprintRecord<M>> {
+        &self.fps
+    }
+
+    pub fn item_sets(&self) -> &Vec<ItemSetRecord<M>> {
+        &self.item_sets
     }
 }
 
@@ -44,25 +108,26 @@ where
     M: ProtocolMonoid,
     N: Node<M>,
 {
-    let parts = match root.node_contents() {
+    let msg = match root.node_contents() {
         Some(non_nil_node) => {
             let (min, max) = non_nil_node.bounds();
             let range = Range(min.clone(), max.next());
-            let full_monoid = MessagePart::Fingerprint(root.monoid().to_encoded()?);
-            vec![
-                (range.reverse(), MessagePart::ItemSet(vec![], true)),
-                (range, full_monoid),
-            ]
+            let rev_range = range.reverse();
+            let full_monoid = root.monoid().to_encoded()?;
+
+            Message::new(
+                vec![FingerprintRecord::new(range, full_monoid)],
+                vec![ItemSetRecord::new(rev_range, vec![], true)],
+            )
         }
         None => {
-            vec![(
-                Range(M::Item::zero(), M::Item::zero()),
-                MessagePart::ItemSet(vec![], true),
-            )]
+            let range = Range(M::Item::zero(), M::Item::zero());
+
+            Message::new(vec![], vec![ItemSetRecord::new(range, vec![], true)])
         }
     };
 
-    Ok(Message(parts))
+    Ok(msg)
 }
 
 pub fn respond_to_message<M, N>(
@@ -75,78 +140,78 @@ where
     M: ProtocolMonoid,
     N: Node<M>,
 {
-    let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
+    let mut response = Message::new(vec![], vec![]);
     let mut new_items = vec![];
 
-    let mut prep_ranges = vec![];
-    let mut prep_fps = vec![];
-    let mut prep_encoded_fps = vec![];
+    let dummy_encoded_fp = M::neutral().to_encoded()?;
+    let mut prep_raw = vec![];
+    let mut prep_parts = vec![];
 
-    for (range, part) in &msg.0 {
-        match part {
-            MessagePart::Fingerprint(their_fp) => {
-                let their_fp = M::from_encoded(their_fp)?;
-                let mut my_fp_acc = SimpleAccumulator::new();
-                root.query(range, &mut my_fp_acc);
-                let my_fp = my_fp_acc.into_result();
-                if my_fp != their_fp {
-                    if my_fp.count() < threshold {
-                        let mut acc = ItemsAccumulator::new();
-                        root.query(range, &mut acc);
-                        response_parts.push((
-                            range.clone(),
-                            MessagePart::ItemSet(acc.into_results(), true),
-                        ));
-                        continue;
-                    }
+    for item_set in msg.item_sets() {
+        let ItemSetRecord {
+            range,
+            items,
+            want_response,
+        } = item_set;
 
-                    let splits = split(my_fp.count());
-                    let mut acc = SplitAccumulator::new(range, &splits);
-                    root.query(range, &mut acc);
-                    let results = acc.results();
-                    let ranges = acc.ranges();
-                    for (i, fp) in results.iter().enumerate() {
-                        let sub_range = &ranges[i];
-                        if fp.count() < threshold {
-                            let mut acc = ItemsAccumulator::new();
-                            root.query(sub_range, &mut acc);
-                            response_parts.push((
-                                sub_range.clone(),
-                                MessagePart::ItemSet(acc.into_results(), true),
-                            ));
-                        } else {
-                            prep_ranges.push(sub_range.clone());
-                            prep_fps.push(fp.clone());
-                            prep_encoded_fps.push(M::Encoded::default());
-                        }
-                    }
-                }
+        new_items.extend_from_slice(&items);
+        if *want_response {
+            let mut acc = ItemsAccumulator::new();
+            root.query(range, &mut acc);
+            response
+                .item_sets
+                .push(ItemSetRecord::new(range.clone(), acc.into_results(), false));
+        }
+    }
+
+    for FingerprintRecord { range, fp } in msg.fingerprints() {
+        let their_fp = M::from_encoded(fp)?;
+        let mut my_fp_acc = SimpleAccumulator::new();
+        root.query(range, &mut my_fp_acc);
+        let my_fp = my_fp_acc.into_result();
+
+        if my_fp != their_fp {
+            if my_fp.count() < threshold {
+                let mut acc = ItemsAccumulator::new();
+                root.query(range, &mut acc);
+                response.item_sets.push(ItemSetRecord::new(
+                    range.clone(),
+                    acc.into_results(),
+                    true,
+                ));
+                continue;
             }
-            MessagePart::ItemSet(items, want_response) => {
-                new_items.extend_from_slice(&items);
-                if *want_response {
+
+            let splits = split(my_fp.count());
+            let mut acc = SplitAccumulator::new(range, &splits);
+            root.query(range, &mut acc);
+            let results = acc.results();
+            let ranges = acc.ranges();
+            for (i, fp) in results.iter().enumerate() {
+                let sub_range = &ranges[i];
+                if fp.count() < threshold {
                     let mut acc = ItemsAccumulator::new();
-                    root.query(range, &mut acc);
-                    response_parts.push((
-                        range.clone(),
-                        MessagePart::ItemSet(acc.into_results(), false),
+                    root.query(sub_range, &mut acc);
+                    response.item_sets.push(ItemSetRecord::new(
+                        sub_range.clone(),
+                        acc.into_results(),
+                        true,
                     ));
+                } else {
+                    prep_parts.push(FingerprintRecord::new(
+                        sub_range.clone(),
+                        dummy_encoded_fp.clone(),
+                    ));
+                    prep_raw.push(fp.clone());
                 }
             }
         }
     }
 
-    <M as Encodable>::batch_encode(&prep_fps, &mut prep_encoded_fps)?;
+    <M as Encodable>::batch_encode(&prep_raw, &mut prep_parts)?;
+    response.fps.extend(prep_parts.into_iter());
 
-    response_parts.extend(
-        prep_ranges.into_iter().zip(
-            prep_encoded_fps
-                .into_iter()
-                .map(|fp| MessagePart::Fingerprint(fp)),
-        ),
-    );
-
-    Ok((Message(response_parts), new_items))
+    Ok((response, new_items))
 }
 
 #[cfg(test)]

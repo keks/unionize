@@ -63,7 +63,11 @@ fn sync_100k_msgs() {
     loop {
         count += 1;
         // println!("alice msg: {msg:?}");
-        println!("alice msg length: {}", msg.0.len());
+        println!(
+            "alice msg lengths: fps:{} item_sets:{}",
+            msg.fingerprints().len(),
+            msg.item_sets().len()
+        );
         if msg.is_end() {
             break;
         }
@@ -72,7 +76,11 @@ fn sync_100k_msgs() {
         missing_items_bob.extend(new_items.into_iter());
 
         // println!("bob msg:   {resp:?}");
-        println!("bob msg length:   {}", resp.0.len());
+        println!(
+            "bob msg lengths: fps:{} item_sets:{}",
+            resp.fingerprints().len(),
+            resp.item_sets().len()
+        );
         if resp.is_end() {
             break;
         }

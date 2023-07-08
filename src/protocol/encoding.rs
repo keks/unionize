@@ -28,9 +28,9 @@ pub trait Encodable: Default {
         Ok(decoded)
     }
 
-    fn batch_encode(
+    fn batch_encode<Dst: AsDestMutRef<Self::Encoded>>(
         src: &[Self],
-        dst: &mut [Self::Encoded],
+        dst: &mut [Dst],
     ) -> Result<(), EncodeError<Self::EncodeError>> {
         assert_eq!(
             src.len(),
@@ -38,12 +38,22 @@ pub trait Encodable: Default {
             "source and destination count doesn't match"
         );
         for i in 0..src.len() {
-            src[i].encode(&mut dst[i])?;
+            src[i].encode(dst[i].as_dest_mut_ref())?;
         }
 
         Ok(())
     }
 }
+
+pub trait AsDestMutRef<T> {
+    fn as_dest_mut_ref(&mut self) -> &mut T;
+}
+
+// impl<T> AsDestMutRef<T> for T {
+//     fn as_dest_mut_ref(&mut self) -> &mut T {
+//         self
+//     }
+// }
 
 impl<E: std::error::Error> core::fmt::Display for EncodeError<E> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
