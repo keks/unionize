@@ -1,4 +1,11 @@
-use crate::item::le_byte_array::LEByteArray;
+extern crate std;
+
+use core::convert::Infallible;
+
+use crate::{
+    item::le_byte_array::LEByteArray,
+    proto::{DecodeError, EncodeError},
+};
 
 use super::Monoid;
 
@@ -28,6 +35,26 @@ impl<const L: usize, P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static> Mon
 #[derive(Debug, Copy, Clone)]
 pub struct InvalidPoint;
 
+impl core::fmt::Display for InvalidPoint {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("invalid point")
+    }
+}
+
+impl std::error::Error for InvalidPoint {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        self.source()
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct EncodedPoint<const L: usize>(pub [u8; L]);
 
@@ -55,19 +82,33 @@ where
     P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static,
 {
     type Encoded = EncodedPoint<L>;
-    type Error = InvalidPoint;
+    type EncodeError = Infallible;
+    type DecodeError = InvalidPoint;
 
-    fn encode(&self, target: &mut Self::Encoded) -> Result<(), Self::Error> {
+    fn encode(&self, target: &mut Self::Encoded) -> Result<(), EncodeError<Self::EncodeError>> {
         P::encode(&self.0, &mut target.0);
         Ok(())
     }
 
-    fn decode(&mut self, target: &Self::Encoded) -> Result<(), Self::Error> {
+    fn decode(&mut self, target: &Self::Encoded) -> Result<(), DecodeError<Self::DecodeError>> {
         if P::decode(&mut self.0, &target.0).into() {
             Ok(())
         } else {
-            Err(InvalidPoint)
+            Err(DecodeError(InvalidPoint))
         }
+    }
+
+    fn batch_encode(
+        src: &[Self],
+        dst: &mut [Self::Encoded],
+    ) -> Result<(), EncodeError<Self::EncodeError>> {
+        assert_eq!(src.len(), dst.len());
+
+        for i in 0..src.len() {
+            P::encode(&src[i].0, &mut dst[i].0);
+        }
+
+        Ok(())
     }
 }
 

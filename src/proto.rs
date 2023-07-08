@@ -1,5 +1,7 @@
 extern crate alloc;
-use alloc::{vec, vec::Vec};
+use alloc::{format, vec, vec::Vec};
+
+extern crate std;
 
 use crate::{
     item::Item,
@@ -13,23 +15,85 @@ pub trait ProtocolMonoid: Monoid + Encodable {
     fn count(&self) -> usize;
 }
 
+#[derive(Debug, Clone)]
+pub struct EncodeError<E>(pub E);
+#[derive(Debug, Clone)]
+pub struct DecodeError<E>(pub E);
+
+impl<E: std::error::Error> core::fmt::Display for EncodeError<E> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&format!("encoding error: {}", self.0))
+    }
+}
+
+impl<E: std::error::Error> std::error::Error for EncodeError<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        self.source()
+    }
+}
+
+impl<D: std::error::Error> core::fmt::Display for DecodeError<D> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&format!("decoding error: {}", self.0))
+    }
+}
+
+impl<D: std::error::Error> std::error::Error for DecodeError<D> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        self.source()
+    }
+}
+
 pub trait Encodable: Default {
     type Encoded: Clone + core::fmt::Debug + Eq + Default;
-    type Error;
+    type EncodeError: std::error::Error + core::fmt::Debug + 'static;
+    type DecodeError: std::error::Error + core::fmt::Debug + 'static;
 
-    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error>;
-    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error>;
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), EncodeError<Self::EncodeError>>;
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), DecodeError<Self::DecodeError>>;
 
-    fn to_encoded(&self) -> Result<Self::Encoded, Self::Error> {
+    fn to_encoded(&self) -> Result<Self::Encoded, EncodeError<Self::EncodeError>> {
         let mut encoded = Self::Encoded::default();
         self.encode(&mut encoded)?;
         Ok(encoded)
     }
 
-    fn from_encoded(encoded: &Self::Encoded) -> Result<Self, Self::Error> {
+    fn from_encoded(encoded: &Self::Encoded) -> Result<Self, DecodeError<Self::DecodeError>> {
         let mut decoded = Self::default();
         decoded.decode(encoded)?;
         Ok(decoded)
+    }
+
+    fn batch_encode(
+        src: &[Self],
+        dst: &mut [Self::Encoded],
+    ) -> Result<(), EncodeError<Self::EncodeError>> {
+        assert_eq!(
+            src.len(),
+            dst.len(),
+            "source and destination count doesn't match"
+        );
+        for i in 0..src.len() {
+            src[i].encode(&mut dst[i])?;
+        }
+
+        Ok(())
     }
 }
 
@@ -51,7 +115,7 @@ where
     }
 }
 
-pub fn first_message<M, N>(root: &N) -> Result<Message<M>, M::Error>
+pub fn first_message<M, N>(root: &N) -> Result<Message<M>, EncodeError<M::EncodeError>>
 where
     M: ProtocolMonoid,
     N: Node<M>,
@@ -77,12 +141,56 @@ where
     Ok(Message(parts))
 }
 
+impl<M: ProtocolMonoid> From<EncodeError<M::EncodeError>> for RespondError<M> {
+    fn from(value: EncodeError<M::EncodeError>) -> Self {
+        Self::EncodeError(value.0)
+    }
+}
+
+impl<M: ProtocolMonoid> From<DecodeError<M::DecodeError>> for RespondError<M> {
+    fn from(value: DecodeError<M::DecodeError>) -> Self {
+        Self::DecodeError(value.0)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RespondError<M: ProtocolMonoid> {
+    EncodeError(M::EncodeError),
+    DecodeError(M::DecodeError),
+}
+
+impl<M: ProtocolMonoid> std::error::Error for RespondError<M> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            RespondError::EncodeError(e) => Some(e),
+            RespondError::DecodeError(e) => Some(e),
+        }
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        self.source()
+    }
+}
+
+impl<M: ProtocolMonoid> core::fmt::Display for RespondError<M> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RespondError::EncodeError(e) => f.write_str(&format!("encoding error: {e}")),
+            RespondError::DecodeError(e) => f.write_str(&format!("encoding error: {e}")),
+        }
+    }
+}
+
 pub fn respond_to_message<M, N>(
     root: &N,
     msg: &Message<M>,
     threshold: usize,
     split: fn(usize) -> Vec<usize>,
-) -> Result<(Message<M>, Vec<M::Item>), M::Error>
+) -> Result<(Message<M>, Vec<M::Item>), RespondError<M>>
 where
     M: ProtocolMonoid,
     N: Node<M>,

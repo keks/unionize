@@ -1,6 +1,6 @@
 use crate::{
     monoid::Monoid,
-    proto::{Encodable, ProtocolMonoid},
+    proto::{DecodeError, Encodable, EncodeError, ProtocolMonoid},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,14 +27,15 @@ impl<M: Monoid + Encodable> ProtocolMonoid for CountingMonoid<M> {
 impl<M: Monoid + Encodable> Encodable for CountingMonoid<M> {
     type Encoded = (usize, M::Encoded);
 
-    type Error = M::Error;
+    type EncodeError = M::EncodeError;
+    type DecodeError = M::DecodeError;
 
-    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error> {
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), EncodeError<Self::EncodeError>> {
         encoded.0 = self.0;
         M::encode(&self.1, &mut encoded.1)
     }
 
-    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error> {
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), DecodeError<Self::DecodeError>> {
         self.0 = encoded.0;
         M::decode(&mut self.1, &encoded.1)
     }

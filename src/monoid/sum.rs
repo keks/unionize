@@ -1,4 +1,6 @@
-use crate::proto::Encodable;
+use core::convert::Infallible;
+
+use crate::proto::{DecodeError, Encodable, EncodeError};
 
 use super::{Item, Monoid};
 
@@ -22,14 +24,15 @@ impl<I: SumItem> Default for SumMonoid<I> {
 
 impl<I: SumItem> Encodable for SumMonoid<I> {
     type Encoded = Self;
-    type Error = ();
+    type EncodeError = Infallible;
+    type DecodeError = Infallible;
 
-    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error> {
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), EncodeError<Self::EncodeError>> {
         *encoded = self.clone();
         Ok(())
     }
 
-    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error> {
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), DecodeError<Self::DecodeError>> {
         *self = encoded.clone();
         Ok(())
     }

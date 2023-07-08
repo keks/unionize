@@ -1,11 +1,12 @@
-use core::fmt::Debug;
 use core::marker::PhantomData;
+use core::{convert::Infallible, fmt::Debug};
 
 extern crate alloc;
 use alloc::format;
 
 use sha2::{Digest, Sha256};
 
+use crate::proto::{DecodeError, EncodeError};
 use crate::{
     monoid::{Item, Monoid},
     proto::{Encodable, ProtocolMonoid},
@@ -35,14 +36,15 @@ where
     I: Clone + Debug + PartialOrd + Ord,
 {
     type Encoded = Self;
-    type Error = ();
+    type EncodeError = Infallible;
+    type DecodeError = Infallible;
 
-    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), Self::Error> {
+    fn encode(&self, encoded: &mut Self::Encoded) -> Result<(), EncodeError<Self::EncodeError>> {
         *encoded = self.clone();
         Ok(())
     }
 
-    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), Self::Error> {
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<(), DecodeError<Self::DecodeError>> {
         *self = encoded.clone();
         Ok(())
     }
