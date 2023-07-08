@@ -198,6 +198,10 @@ where
     let mut response_parts: Vec<(Range<_>, MessagePart<M>)> = vec![];
     let mut new_items = vec![];
 
+    let mut prep_ranges = vec![];
+    let mut prep_fps = vec![];
+    let mut prep_encoded_fps = vec![];
+
     for (range, part) in &msg.0 {
         match part {
             MessagePart::Fingerprint(their_fp) => {
@@ -231,21 +235,11 @@ where
                                 MessagePart::ItemSet(acc.into_results(), true),
                             ));
                         } else {
-                            response_parts.push((
-                                sub_range.clone(),
-                                MessagePart::Fingerprint(fp.to_encoded()?),
-                            ));
-
-                            // if fp.count() == threshold {
-                            //     print!("items ");
-                            //     let mut acc = ItemsAccumulator::new();
-                            //     root.query(sub_range, &mut acc);
-                            // }
+                            prep_ranges.push(sub_range.clone());
+                            prep_fps.push(fp.clone());
+                            prep_encoded_fps.push(M::Encoded::default());
                         }
                     }
-                    // } else {
-                    // let mut acc = ItemsAccumulator::new();
-                    // root.query(range, &mut acc);
                 }
             }
             MessagePart::ItemSet(items, want_response) => {
@@ -261,6 +255,16 @@ where
             }
         }
     }
+
+    <M as Encodable>::batch_encode(&prep_fps, &mut prep_encoded_fps)?;
+
+    response_parts.extend(
+        prep_ranges.into_iter().zip(
+            prep_encoded_fps
+                .into_iter()
+                .map(|fp| MessagePart::Fingerprint(fp)),
+        ),
+    );
 
     Ok((Message(response_parts), new_items))
 }
