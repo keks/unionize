@@ -3,15 +3,6 @@ use crate::item::Item;
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Range<T: Item>(pub(crate) T, pub(crate) T);
 
-impl<T: Item + Copy> Copy for Range<T> {}
-
-impl<T: Item> core::fmt::Display for Range<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let Self(from, to) = self;
-        write!(f, "{from:?}..{to:?}")
-    }
-}
-
 impl<T: Item> Range<T> {
     pub fn reverse(&self) -> Self {
         let Self(from, to) = self;
@@ -81,5 +72,14 @@ impl<T: Item> Range<T> {
         // } else {
         //     non_wrapping_case
         // }
+    }
+}
+
+impl<T: Item + Copy> Copy for Range<T> {}
+
+impl<T: Item> core::fmt::Display for Range<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let Self(from, to) = self;
+        write!(f, "{from:?}..{to:?}")
     }
 }
