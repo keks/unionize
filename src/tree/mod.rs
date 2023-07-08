@@ -6,24 +6,6 @@ use crate::Item;
 use crate::Monoid;
 use crate::Range;
 
-pub trait NonNilNodeRef<'a, M, N>: core::fmt::Debug + Clone
-where
-    M: Monoid,
-    N: Node<M>,
-{
-    type ChildIter<'b>: Iterator<Item = (&'b N, &'b M::Item)>
-    where
-        N: 'b,
-        M::Item: 'b,
-        Self: 'b;
-
-    fn bounds(&self) -> (&M::Item, &M::Item);
-    fn min(&self) -> &M::Item;
-    fn max(&self) -> &M::Item;
-    fn children<'b>(&'b self) -> Self::ChildIter<'b>;
-    fn last_child<'b>(&'b self) -> &'b N;
-}
-
 pub trait Node<M>: core::fmt::Debug + Clone
 where
     M: Monoid,
@@ -86,4 +68,22 @@ where
 
         node.last_child().query(range, state);
     }
+}
+
+pub trait NonNilNodeRef<'a, M, N>: core::fmt::Debug + Clone
+where
+    M: Monoid,
+    N: Node<M>,
+{
+    type ChildIter<'b>: Iterator<Item = (&'b N, &'b M::Item)>
+    where
+        N: 'b,
+        M::Item: 'b,
+        Self: 'b;
+
+    fn bounds(&self) -> (&M::Item, &M::Item);
+    fn min(&self) -> &M::Item;
+    fn max(&self) -> &M::Item;
+    fn children<'b>(&'b self) -> Self::ChildIter<'b>;
+    fn last_child<'b>(&'b self) -> &'b N;
 }
