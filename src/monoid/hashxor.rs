@@ -6,10 +6,10 @@ use alloc::format;
 
 use sha2::{Digest, Sha256};
 
-use crate::proto::{DecodeError, EncodeError};
+use crate::protocol::{DecodeError, EncodeError};
 use crate::{
     monoid::{Item, Monoid},
-    proto::{Encodable, ProtocolMonoid},
+    protocol::{Encodable, ProtocolMonoid},
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]

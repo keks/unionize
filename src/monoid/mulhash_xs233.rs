@@ -4,7 +4,7 @@ use core::convert::Infallible;
 
 use crate::{
     item::le_byte_array::LEByteArray,
-    proto::{DecodeError, EncodeError},
+    protocol::{DecodeError, EncodeError},
 };
 
 use super::Monoid;
@@ -77,7 +77,7 @@ impl<const L: usize> Default for EncodedPoint<L> {
     }
 }
 
-impl<const L: usize, P> crate::proto::Encodable for MulHashMonoid<P>
+impl<const L: usize, P> crate::protocol::Encodable for MulHashMonoid<P>
 where
     P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static,
 {

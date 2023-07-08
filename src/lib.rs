@@ -13,4 +13,4 @@ pub use range::Range;
 pub use tree::{Node, NonNilNodeRef};
 
 pub mod easy;
-pub mod proto;
+pub mod protocol;

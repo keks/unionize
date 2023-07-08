@@ -2,7 +2,7 @@ extern crate alloc;
 use alloc::{vec, vec::Vec};
 
 use super::Accumulator;
-use crate::{item::Item, proto::ProtocolMonoid, range::Range, Node, NonNilNodeRef};
+use crate::{item::Item, protocol::ProtocolMonoid, range::Range, Node, NonNilNodeRef};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>

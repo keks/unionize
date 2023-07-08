@@ -1,6 +1,6 @@
 use crate::{
     monoid::Monoid,
-    proto::{DecodeError, Encodable, EncodeError, ProtocolMonoid},
+    protocol::{DecodeError, Encodable, EncodeError, ProtocolMonoid},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

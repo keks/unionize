@@ -1,6 +1,6 @@
 use core::convert::Infallible;
 
-use crate::proto::{DecodeError, Encodable, EncodeError};
+use crate::protocol::{DecodeError, Encodable, EncodeError};
 
 use super::{Item, Monoid};
 
