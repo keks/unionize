@@ -49,12 +49,6 @@ pub trait AsDestMutRef<T> {
     fn as_dest_mut_ref(&mut self) -> &mut T;
 }
 
-// impl<T> AsDestMutRef<T> for T {
-//     fn as_dest_mut_ref(&mut self) -> &mut T {
-//         self
-//     }
-// }
-
 impl<E: std::error::Error> core::fmt::Display for EncodeError<E> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(&format!("encoding error: {}", self.0))
