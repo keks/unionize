@@ -1,3 +1,4 @@
+extern crate alloc;
 extern crate std;
 
 use core::convert::Infallible;
@@ -6,6 +7,9 @@ use crate::{
     item::le_byte_array::LEByteArray,
     protocol::{encoding::AsDestMutRef, DecodeError, EncodeError},
 };
+
+use alloc::format;
+use serde::{de::Deserializer, Deserialize, Serialize};
 
 use super::Monoid;
 
@@ -16,6 +20,13 @@ use super::Monoid;
 /// This should be cryptographically secure. I hope.
 #[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub struct MulHashMonoid<P: xs233::Point>(P);
+
+impl<P: xs233::Point> MulHashMonoid<P> {
+    #[allow(dead_code)] // is actually used, but in tests
+    pub(crate) fn set(&mut self, pt: P) {
+        self.0 = pt;
+    }
+}
 
 impl<const L: usize, P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static> Monoid
     for MulHashMonoid<P>
@@ -34,6 +45,47 @@ impl<const L: usize, P: xs233::Point<EncodedPoint = [u8; L]> + Eq + 'static> Mon
         let mut out = P::default();
         out.add(&self.0, &other.0);
         Self(out)
+    }
+}
+
+impl<const L: usize> Serialize for EncodedPoint<L> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_bytes(&self.0)
+    }
+}
+
+struct EncodedPointVisitor<const L: usize>([(); L]);
+
+impl<'de, const L: usize> serde::de::Visitor<'de> for EncodedPointVisitor<L> {
+    type Value = EncodedPoint<L>;
+
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+        formatter.write_str(&format!("{L} bytes/u8s"))
+    }
+
+    fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match value.try_into() {
+            Ok(buf) => Ok(EncodedPoint(buf)),
+            Err(_) => Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Bytes(value),
+                &self,
+            )),
+        }
+    }
+}
+
+impl<'de, const L: usize> Deserialize<'de> for EncodedPoint<L> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_bytes(EncodedPointVisitor([(); L]))
     }
 }
 
@@ -156,5 +208,19 @@ mod tests {
         }
 
         println!("{acc:?}");
+    }
+
+    use proptest::{prop_assert_eq, proptest};
+
+    proptest! {
+        #[test]
+        fn serialize_correctness(data in proptest::array::uniform30(0u8..=255u8)) {
+            println!("d:{data:x?}");
+            let point = EncodedPoint(data);
+            let encoded = serde_cbor::to_vec(&point).unwrap();
+            println!("e:{encoded:x?}");
+            let result = serde_cbor::from_slice(&encoded).unwrap();
+            prop_assert_eq!(point, result);
+        }
     }
 }

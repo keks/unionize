@@ -9,6 +9,8 @@ pub use encoding::{DecodeError, Encodable, EncodeError};
 pub mod error;
 pub use error::RespondError;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     item::Item,
     monoid::Monoid,
@@ -17,17 +19,38 @@ use crate::{
     Node, NonNilNodeRef,
 };
 
+pub trait SerializableItem: Item + Serialize {}
+
 pub trait ProtocolMonoid: Monoid + Encodable {
+    // pub trait ProtocolMonoid: Monoid<Item = Self::SerializableItem> + Encodable {
+    // type SerializableItem: SerializableItem;
     fn count(&self) -> usize;
 }
 
-#[derive(Debug, Clone)]
-pub struct FingerprintRecord<M: ProtocolMonoid> {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(
+    bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>, M::Encoded: Serialize, for<'de2> M::Encoded: Deserialize<'de2>"
+)]
+pub struct FingerprintRecord<M>
+where
+    M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
+{
     range: Range<M::Item>,
     fp: M::Encoded,
 }
 
-impl<M: ProtocolMonoid> FingerprintRecord<M> {
+impl<M> FingerprintRecord<M>
+where
+    M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
+{
     pub fn new(range: Range<M::Item>, fp: M::Encoded) -> Self {
         Self { range, fp }
     }
@@ -41,20 +64,42 @@ impl<M: ProtocolMonoid> FingerprintRecord<M> {
     }
 }
 
-impl<M: ProtocolMonoid> encoding::AsDestMutRef<M::Encoded> for FingerprintRecord<M> {
+impl<M> encoding::AsDestMutRef<M::Encoded> for FingerprintRecord<M>
+where
+    M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
+{
     fn as_dest_mut_ref(&mut self) -> &mut M::Encoded {
         &mut self.fp
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ItemSetRecord<M: Monoid> {
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>")]
+pub struct ItemSetRecord<M>
+where
+    M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
+{
     range: Range<M::Item>,
     items: Vec<M::Item>,
     want_response: bool,
 }
 
-impl<M: Monoid> ItemSetRecord<M> {
+impl<M: Monoid> ItemSetRecord<M>
+where
+    M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
+{
     pub fn new(range: Range<M::Item>, items: Vec<M::Item>, want_response: bool) -> Self {
         Self {
             range,
@@ -76,8 +121,16 @@ impl<M: Monoid> ItemSetRecord<M> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Message<M: ProtocolMonoid + Encodable> {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>")]
+pub struct Message<M>
+where
+    M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
+{
     fps: Vec<FingerprintRecord<M>>,
     item_sets: Vec<ItemSetRecord<M>>,
 }
@@ -85,6 +138,10 @@ pub struct Message<M: ProtocolMonoid + Encodable> {
 impl<M> Message<M>
 where
     M: ProtocolMonoid,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
 {
     pub fn new(fps: Vec<FingerprintRecord<M>>, item_sets: Vec<ItemSetRecord<M>>) -> Self {
         Self { fps, item_sets }
@@ -107,6 +164,10 @@ pub fn first_message<M, N>(root: &N) -> Result<Message<M>, EncodeError<M::Encode
 where
     M: ProtocolMonoid,
     N: Node<M>,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
 {
     let msg = match root.node_contents() {
         Some(non_nil_node) => {
@@ -139,6 +200,10 @@ pub fn respond_to_message<M, N>(
 where
     M: ProtocolMonoid,
     N: Node<M>,
+    M::Item: Serialize,
+    M::Encoded: Serialize,
+    for<'de2> M::Item: Deserialize<'de2>,
+    for<'de2> M::Encoded: Deserialize<'de2>,
 {
     let mut response = Message::new(vec![], vec![]);
     let mut new_items = vec![];
@@ -218,16 +283,22 @@ where
 mod tests {
     extern crate alloc;
     use alloc::{collections::BTreeSet, format, vec, vec::Vec};
+    use xs233::{scalar::Scalar, xsk233::Xsk233Point, Point};
 
     extern crate std;
     use std::println;
 
     use crate::{
-        easy::uniform::split as uniform_split, monoid::hashxor::CountingSha256Xor,
+        easy::uniform::split as uniform_split,
+        item::le_byte_array::LEByteArray,
+        monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
         tree::mem_rc::Node,
+        Monoid, Range,
     };
 
-    use proptest::{prelude::prop, prop_assert, proptest};
+    use proptest::{prelude::prop, prop_assert, prop_assert_eq, prop_compose, proptest};
+
+    use super::{Encodable, FingerprintRecord, ItemSetRecord, Message};
 
     proptest! {
         #[test]
@@ -309,6 +380,91 @@ mod tests {
             println!("{a_eq}, {b_eq}");
             prop_assert!(a_eq, "a does not match");
             prop_assert!(b_eq, "a does not match");
+        }
+    }
+
+    prop_compose! {
+        fn arb_item()
+            (item_bs in proptest::array::uniform30(0u8..=255u8)) -> LEByteArray<30> {
+                LEByteArray(item_bs)
+            }
+    }
+
+    prop_compose! {
+        fn arb_range()
+            (from in arb_item(), to in arb_item()) -> Range<LEByteArray<30>> {
+            Range(from, to)
+        }
+    }
+
+    prop_compose! {
+        fn arb_scalar()
+            (scalar in proptest::array::uniform29(0u8..=255u8)) -> Scalar<29> {
+                Scalar::new(scalar)
+            }
+    }
+
+    prop_compose! {
+        fn arb_point()
+            (scalar in arb_scalar()) -> xs233::xsk233::Xsk233Point {
+                let mut pt = <xs233::xsk233::Xsk233Point as xs233::Point>::generator().clone();
+                pt.mul_inplace(&scalar);
+                pt
+            }
+    }
+
+    prop_compose! {
+        fn arb_fp_rec()
+            (range in arb_range(), fp in arb_point(), count in 0..1432usize) -> FingerprintRecord<CountingMonoid<MulHashMonoid<Xsk233Point>>> {
+                let mut monoid = MulHashMonoid::neutral();
+                monoid.set(fp);
+                FingerprintRecord{
+                    range,
+                    fp: CountingMonoid::new(count, monoid).to_encoded().unwrap() ,
+                }
+            }
+    }
+
+    prop_compose! {
+        fn arb_item_set_rec()
+            (range in arb_range(), items in proptest::collection::vec(arb_item(), 0..10), want_response in proptest::bool::ANY) -> ItemSetRecord<CountingMonoid<MulHashMonoid<Xsk233Point>>> {
+                ItemSetRecord {
+                    range,
+                    items,
+                    want_response
+                }
+            }
+    }
+
+    prop_compose! {
+        fn arb_message()
+            (fps in proptest::collection::vec( arb_fp_rec(), 0..10), item_sets in proptest::collection::vec(arb_item_set_rec(), 0..10)) -> Message<CountingMonoid<MulHashMonoid<Xsk233Point>>>{
+                Message{
+                    fps, item_sets
+                }
+            }
+    }
+
+    proptest! {
+        #[test]
+        fn serialize_correctness_stream(msg in arb_message()) {
+            let mut buffer = Vec::new();
+            serde_cbor::to_writer(&mut buffer, &msg).unwrap();
+            let result = serde_cbor::from_reader(&buffer[..]).unwrap();
+            prop_assert_eq!(msg, result);
+
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn serialize_correctness(msg in arb_message()) {
+            println!("m:{msg:?}");
+            let encoded = serde_cbor::to_vec(&msg).unwrap();
+            println!("e:{encoded:x?}");
+            let result = serde_cbor::from_slice(&encoded).unwrap();
+            prop_assert_eq!(msg, result);
+
         }
     }
 }

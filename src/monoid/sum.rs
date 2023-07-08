@@ -4,12 +4,14 @@ use crate::protocol::{DecodeError, Encodable, EncodeError};
 
 use super::{Item, Monoid};
 
+use serde::{Deserialize, Serialize};
+
 /// Items that can simply be added.
-pub trait SumItem: Item + core::ops::Add<Output = Self> {}
-impl<I> SumItem for I where I: Item + core::ops::Add<Output = Self> {}
+pub trait SumItem: Item + core::ops::Add<Output = Self> + Serialize {}
+impl<I> SumItem for I where I: Item + core::ops::Add<Output = Self> + Serialize {}
 
 /// Lifting is a no-op and combining is adding.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SumMonoid<I: SumItem>(pub I);
 
 impl<I: SumItem> SumMonoid<I> {

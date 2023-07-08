@@ -4,9 +4,10 @@ use core::{convert::Infallible, fmt::Debug};
 extern crate alloc;
 use alloc::format;
 
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::protocol::{DecodeError, EncodeError};
+use crate::protocol::{DecodeError, EncodeError, SerializableItem};
 use crate::{
     monoid::{Item, Monoid},
     protocol::{Encodable, ProtocolMonoid},
@@ -16,13 +17,15 @@ use crate::{
 /// Should probably only be used for tests.
 /// One reason this is needed because if we tests by XORing simple numbers, collisions are very
 /// likely.
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Deserialize, Serialize)]
 pub struct CountingSha256Xor<I: Item>(usize, [u8; 32], PhantomData<I>);
 
-impl<I: Item> ProtocolMonoid for CountingSha256Xor<I>
+impl<I> ProtocolMonoid for CountingSha256Xor<I>
 where
-    I: Clone + Debug + Ord,
+    I: SerializableItem,
 {
+    // type SerializableItem = I;
+
     fn count(&self) -> usize {
         let Self(count, _, _) = self;
         *count

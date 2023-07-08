@@ -2,13 +2,12 @@ extern crate alloc;
 use alloc::{vec, vec::Vec};
 
 use super::Accumulator;
-use crate::{item::Item, protocol::ProtocolMonoid, range::Range, Node, NonNilNodeRef};
+use crate::{protocol::ProtocolMonoid, range::Range, Node, NonNilNodeRef};
 
 #[derive(Debug, Clone)]
 pub struct SplitAccumulator<'a, M>
 where
     M: ProtocolMonoid,
-    M::Item: Item,
 {
     split_sizes: &'a [usize],
     pub(crate) results: Vec<M>,
@@ -20,7 +19,6 @@ where
 impl<'a, M> SplitAccumulator<'a, M>
 where
     M: ProtocolMonoid,
-    M::Item: Item,
 {
     pub fn new(query_range: &Range<M::Item>, split_sizes: &'a [usize]) -> Self {
         let mut state = SplitAccumulator {
@@ -77,7 +75,6 @@ where
 impl<'a, M> Accumulator<M> for SplitAccumulator<'a, M>
 where
     M: ProtocolMonoid,
-    M::Item: Item,
 {
     fn add_node<'b, N: Node<M>>(&mut self, node: &'b N) {
         let non_nil_node = if let Some(non_nil_node) = node.node_contents() {
