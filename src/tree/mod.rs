@@ -64,12 +64,12 @@ where
 
         if max >= range.from() {
             let high_range = Range(range.from().clone(), max.next());
-            root.query(&high_range, state);
+            query(root, &high_range, state);
         }
 
         if min < range.to() {
             let low_range = Range(min.clone(), range.to().clone());
-            root.query(&low_range, state);
+            query(root, &low_range, state);
         }
 
         return;
@@ -81,13 +81,13 @@ where
     }
 
     for (child, item) in node.children() {
-        child.query(range, state);
+        query(child, range, state);
         if range.contains(item) {
             state.add_item(item);
         }
     }
 
-    node.last_child().query(range, state);
+    query(node.last_child(), range, state);
 }
 
 pub trait NonNilNodeRef<'a, M, N>: core::fmt::Debug + Clone
