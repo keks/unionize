@@ -46,9 +46,8 @@ mod test {
 
     use super::*;
 
-    use crate::query::test::TestMonoid;
-    use crate::tree::mem_rc_bounds::Node;
-    use crate::Node as NodeTrait;
+    use crate::easy::tests::{TestMonoid, TestNode};
+    use crate::Node;
     use crate::{monoid::Monoid, range::Range};
 
     use proptest::{prelude::*, prop_assert_eq, proptest};
@@ -62,7 +61,7 @@ mod test {
             println!("items used in test: {:?}", item_set);
             println!("query range: {:?}", query_range);
 
-            let mut root = Node::<TestMonoid<u64>>::Nil(TestMonoid::lift(&0));
+            let mut root = TestNode::nil();
 
             for item in &item_set {
                 root = root.insert(*item);

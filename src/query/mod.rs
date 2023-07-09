@@ -16,11 +16,3 @@ where
 
     fn finalize(&mut self) {}
 }
-
-#[cfg(test)]
-pub mod test {
-    use crate::monoid::{count::CountingMonoid, sum::SumMonoid};
-
-    // helper type for tests
-    pub(crate) type TestMonoid<T> = CountingMonoid<SumMonoid<T>>;
-}

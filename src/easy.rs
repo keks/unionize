@@ -25,3 +25,16 @@ pub mod uniform {
         out
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use crate::{
+        monoid::{count::CountingMonoid, sum::SumMonoid},
+        tree::mem_rc::Node,
+    };
+
+    // helper type for tests
+    pub type TestItem = u64;
+    pub type TestMonoid = CountingMonoid<SumMonoid<TestItem>>;
+    pub type TestNode = Node<TestMonoid>;
+}

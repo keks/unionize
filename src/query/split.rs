@@ -145,10 +145,9 @@ mod test {
 
     use super::*;
 
-    use crate::monoid::Monoid;
-    use crate::query::{simple::SimpleAccumulator, test::TestMonoid};
-    use crate::tree::mem_rc_bounds::Node;
-    use crate::Node as NodeTrait;
+    use crate::easy::tests::TestNode;
+    use crate::query::simple::SimpleAccumulator;
+    use crate::Node;
 
     use proptest::{prelude::*, prop_assert_eq, prop_assume, proptest};
 
@@ -164,7 +163,7 @@ mod test {
             // items are unique
             prop_assume!(item_set.len() == items.len());
 
-            let mut root = Node::<TestMonoid<u64>>::Nil(TestMonoid::lift(&0));
+            let mut root = TestNode::nil();
 
             for item in &item_set {
                 root = root.insert(*item);
