@@ -25,15 +25,11 @@ use crate::{
 pub trait SerializableItem: Item + Serialize {}
 
 pub trait ProtocolMonoid: Monoid + Encodable {
-    // pub trait ProtocolMonoid: Monoid<Item = Self::SerializableItem> + Encodable {
-    // type SerializableItem: SerializableItem;
     fn count(&self) -> usize;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(
-    bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>, M::Encoded: Serialize, for<'de2> M::Encoded: Deserialize<'de2>"
-)]
+#[serde(bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>")]
 pub struct FingerprintRecord<M>
 where
     M: ProtocolMonoid,
