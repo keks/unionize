@@ -93,11 +93,15 @@ mod tests {
     extern crate std;
     use super::*;
 
-    use crate::{easy::uniform::Node, item::le_byte_array::LEByteArray, Node as NodeTrait};
+    use crate::{
+        easy::{tests::TestNode, uniform::Node as UniformNode},
+        item::le_byte_array::LEByteArray,
+        Node as NodeTrait,
+    };
 
     #[test]
     fn base_test() {
-        let mut node = Node::nil();
+        let mut node = UniformNode::nil();
         let item1 = LEByteArray([1; 30]);
         let item2 = LEByteArray([2; 30]);
         node = node.insert(item1);
@@ -112,5 +116,19 @@ mod tests {
 
         let out: Vec<_> = dedup_acc.result().cloned().collect();
         assert_eq!(out, vec![item2]);
+    }
+
+    #[test]
+    fn repro_atttempt() {
+        let node = TestNode::nil().insert(1).insert(443);
+        let items = [443];
+
+        let mut acc = ItemFilterAccumulator::new(&items);
+        let range = acc.query_range().unwrap();
+        node.query(&range, &mut acc);
+
+        let new: Vec<_> = acc.result().collect();
+
+        assert!(new.is_empty())
     }
 }
