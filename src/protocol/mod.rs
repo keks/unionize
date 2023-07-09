@@ -19,7 +19,7 @@ use crate::{
         split::SplitAccumulator,
     },
     range::Range,
-    Node, NonNilNodeRef,
+    Node, NonNilNodeRef, Object, ObjectStore,
 };
 
 pub trait SerializableItem: Item + Serialize {}
@@ -30,7 +30,7 @@ pub trait ProtocolMonoid: Monoid + Encodable {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>")]
-pub struct FingerprintRecord<M>
+pub struct Fingerprint<M>
 where
     M: ProtocolMonoid,
     M::Item: Serialize,
@@ -42,7 +42,7 @@ where
     fp: M::Encoded,
 }
 
-impl<M> FingerprintRecord<M>
+impl<M> Fingerprint<M>
 where
     M: ProtocolMonoid,
     M::Item: Serialize,
@@ -63,7 +63,7 @@ where
     }
 }
 
-impl<M> encoding::AsDestMutRef<M::Encoded> for FingerprintRecord<M>
+impl<M> encoding::AsDestMutRef<M::Encoded> for Fingerprint<M>
 where
     M: ProtocolMonoid,
     M::Item: Serialize,
@@ -78,7 +78,7 @@ where
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>")]
-pub struct ItemSetRecord<M>
+pub struct ItemSet<M>
 where
     M: ProtocolMonoid,
     M::Item: Serialize,
@@ -91,7 +91,7 @@ where
     want_response: bool,
 }
 
-impl<M: Monoid> ItemSetRecord<M>
+impl<M: Monoid> ItemSet<M>
 where
     M: ProtocolMonoid,
     M::Item: Serialize,
@@ -122,51 +122,72 @@ where
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(bound = "M::Item: Serialize, for<'de2> M::Item: Deserialize<'de2>")]
-pub struct Message<M>
+pub struct Message<M, O>
 where
     M: ProtocolMonoid,
+    O: Object<M::Item> + Serialize,
     M::Item: Serialize,
     M::Encoded: Serialize,
     for<'de2> M::Item: Deserialize<'de2>,
     for<'de2> M::Encoded: Deserialize<'de2>,
+    for<'de2> O: Deserialize<'de2>,
 {
-    fps: Vec<FingerprintRecord<M>>,
-    item_sets: Vec<ItemSetRecord<M>>,
+    fps: Vec<Fingerprint<M>>,
+    item_sets: Vec<ItemSet<M>>,
+    wants: Vec<M::Item>,
+    provide: Vec<O>,
 }
 
-impl<M> Message<M>
+impl<M, O> Message<M, O>
 where
     M: ProtocolMonoid,
+    O: Object<M::Item> + Serialize,
     M::Item: Serialize,
     M::Encoded: Serialize,
     for<'de2> M::Item: Deserialize<'de2>,
     for<'de2> M::Encoded: Deserialize<'de2>,
+    for<'de2> O: Deserialize<'de2>,
 {
-    pub fn new(fps: Vec<FingerprintRecord<M>>, item_sets: Vec<ItemSetRecord<M>>) -> Self {
-        Self { fps, item_sets }
+    pub fn new(
+        fps: Vec<Fingerprint<M>>,
+        item_sets: Vec<ItemSet<M>>,
+        wants: Vec<M::Item>,
+        provide: Vec<O>,
+    ) -> Self {
+        Self {
+            fps,
+            item_sets,
+            wants,
+            provide,
+        }
     }
 
     pub fn is_end(&self) -> bool {
-        self.fps.is_empty() && self.item_sets.is_empty()
+        self.fps.is_empty()
+            && self.item_sets.is_empty()
+            && self.wants.is_empty()
+            && self.provide.is_empty()
     }
 
-    pub fn fingerprints(&self) -> &Vec<FingerprintRecord<M>> {
+    pub fn fingerprints(&self) -> &Vec<Fingerprint<M>> {
         &self.fps
     }
 
-    pub fn item_sets(&self) -> &Vec<ItemSetRecord<M>> {
+    pub fn item_sets(&self) -> &Vec<ItemSet<M>> {
         &self.item_sets
     }
 }
 
-pub fn first_message<M, N>(root: &N) -> Result<Message<M>, EncodeError<M::EncodeError>>
+pub fn first_message<O, M, N>(root: &N) -> Result<Message<M, O>, EncodeError<M::EncodeError>>
 where
     M: ProtocolMonoid,
+    O: Object<M::Item> + Serialize,
     N: Node<M>,
     M::Item: Serialize,
     M::Encoded: Serialize,
     for<'de2> M::Item: Deserialize<'de2>,
     for<'de2> M::Encoded: Deserialize<'de2>,
+    for<'de2> O: Deserialize<'de2>,
 {
     let msg = match root.node_contents() {
         Some(non_nil_node) => {
@@ -176,43 +197,61 @@ where
             let full_monoid = root.monoid().to_encoded()?;
 
             Message::new(
-                vec![FingerprintRecord::new(range, full_monoid)],
-                vec![ItemSetRecord::new(rev_range, vec![], true)],
+                vec![Fingerprint::new(range, full_monoid)],
+                vec![ItemSet::new(rev_range, vec![], true)],
+                vec![],
+                vec![],
             )
         }
         None => {
             let range = Range(M::Item::zero(), M::Item::zero());
 
-            Message::new(vec![], vec![ItemSetRecord::new(range, vec![], true)])
+            Message::new(
+                vec![],
+                vec![ItemSet::new(range, vec![], true)],
+                vec![],
+                vec![],
+            )
         }
     };
 
     Ok(msg)
 }
 
-pub fn respond_to_message<M, N>(
+pub fn respond_to_message<O, M, N, S>(
     root: &N,
-    msg: &Message<M>,
+    object_store: &S,
+    msg: &Message<M, O>,
     threshold: usize,
     split: fn(usize) -> Vec<usize>,
-) -> Result<(Message<M>, Vec<M::Item>), RespondError<M>>
+) -> Result<(Message<M, O>, Vec<O>), RespondError<M>>
 where
     M: ProtocolMonoid,
+    O: Object<M::Item> + Serialize,
+    S: ObjectStore<M::Item, O>,
     N: Node<M>,
     M::Item: Serialize,
     M::Encoded: Serialize,
     for<'de2> M::Item: Deserialize<'de2>,
     for<'de2> M::Encoded: Deserialize<'de2>,
+    for<'de2> O: Deserialize<'de2>,
 {
-    let mut response = Message::new(vec![], vec![]);
-    let mut new_items = vec![];
+    let mut fingerprints = vec![];
+    let mut item_sets = vec![];
+    let mut wants = vec![];
 
     let dummy_encoded_fp = M::neutral().to_encoded()?;
     let mut prep_raw = vec![];
     let mut prep_parts = vec![];
 
+    let provide = object_store
+        .get_batch(&msg.wants)
+        .into_iter()
+        .map(|opt_obj| opt_obj.unwrap().clone())
+        .collect();
+
     for item_set in msg.item_sets() {
-        let ItemSetRecord {
+        let ItemSet {
             range,
             items,
             want_response,
@@ -224,19 +263,17 @@ where
         // anything anyways
         if let Some(dedup_query_range) = dedup_acc.query_range() {
             root.query(&dedup_query_range, &mut dedup_acc);
-            new_items.extend(dedup_acc.result().cloned());
+            wants.extend(dedup_acc.result().cloned());
         }
 
         if *want_response {
             let mut acc = ItemsAccumulator::new();
             root.query(range, &mut acc);
-            response
-                .item_sets
-                .push(ItemSetRecord::new(range.clone(), acc.into_results(), false));
+            item_sets.push(ItemSet::new(range.clone(), acc.into_results(), false));
         }
     }
 
-    for FingerprintRecord { range, fp } in msg.fingerprints() {
+    for Fingerprint { range, fp } in msg.fingerprints() {
         let their_fp = M::from_encoded(fp)?;
         let mut my_fp_acc = SimpleAccumulator::new();
         root.query(range, &mut my_fp_acc);
@@ -246,11 +283,7 @@ where
             if my_fp.count() < threshold {
                 let mut acc = ItemsAccumulator::new();
                 root.query(range, &mut acc);
-                response.item_sets.push(ItemSetRecord::new(
-                    range.clone(),
-                    acc.into_results(),
-                    true,
-                ));
+                item_sets.push(ItemSet::new(range.clone(), acc.into_results(), true));
                 continue;
             }
 
@@ -264,13 +297,9 @@ where
                 if fp.count() < threshold {
                     let mut acc = ItemsAccumulator::new();
                     root.query(sub_range, &mut acc);
-                    response.item_sets.push(ItemSetRecord::new(
-                        sub_range.clone(),
-                        acc.into_results(),
-                        true,
-                    ));
+                    item_sets.push(ItemSet::new(sub_range.clone(), acc.into_results(), true));
                 } else {
-                    prep_parts.push(FingerprintRecord::new(
+                    prep_parts.push(Fingerprint::new(
                         sub_range.clone(),
                         dummy_encoded_fp.clone(),
                     ));
@@ -281,31 +310,40 @@ where
     }
 
     <M as Encodable>::batch_encode(&prep_raw, &mut prep_parts)?;
-    response.fps.extend(prep_parts.into_iter());
+    fingerprints.extend(prep_parts.into_iter());
 
-    Ok((response, new_items))
+    Ok((
+        Message::new(fingerprints, item_sets, wants, provide),
+        msg.provide.clone(),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     extern crate alloc;
-    use alloc::{collections::BTreeSet, format, vec, vec::Vec};
+    use alloc::{
+        collections::{BTreeMap, BTreeSet},
+        format, vec,
+        vec::Vec,
+    };
     use xs233::{scalar::Scalar, xsk233::Xsk233Point, Point};
 
     extern crate std;
     use std::println;
 
     use crate::{
-        easy::uniform::split as uniform_split,
+        easy::{
+            tests::{TestMonoid, TestNode, TestObject},
+            uniform::split as uniform_split,
+        },
         item::le_byte_array::LEByteArray,
-        monoid::{count::CountingMonoid, hashxor::CountingSha256Xor, mulhash_xs233::MulHashMonoid},
-        tree::mem_rc::Node,
+        monoid::{count::CountingMonoid, mulhash_xs233::MulHashMonoid},
         Monoid, Range,
     };
 
     use proptest::{prelude::prop, prop_assert, prop_assert_eq, prop_compose, proptest};
 
-    use super::{Encodable, FingerprintRecord, ItemSetRecord, Message};
+    use super::{Encodable, Fingerprint, ItemSet, Message};
 
     proptest! {
         #[test]
@@ -320,18 +358,23 @@ mod tests {
             println!("a items: {item_set_a:?}");
             println!("b items: {item_set_b:?}");
 
-            let mut root_a: Node<CountingSha256Xor<u64>> = Node::nil();
-            let mut root_b: Node<CountingSha256Xor<u64>> = Node::nil();
+            let mut root_a = TestNode::nil();
+            let mut root_b = TestNode::nil();
+
+            let mut object_store_a = BTreeMap::new();
+            let mut object_store_b = BTreeMap::new();
 
             for item in item_set_a.iter().cloned() {
                 root_a = root_a.insert(item);
+                object_store_a.insert(item, (item, true));
             }
 
             for item in item_set_b.iter().cloned() {
                 root_b = root_b.insert(item);
+                object_store_b.insert(item, (item, true));
             }
 
-            let mut msg = super::first_message(&root_a).unwrap();
+            let mut msg:Message<TestMonoid, TestObject> = super::first_message(&root_a).unwrap();
 
             let mut missing_items_a = vec![];
             let mut missing_items_b = vec![];
@@ -343,8 +386,8 @@ mod tests {
                 }
 
                 println!("b-----");
-                let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, uniform_split::<2>).unwrap();
-                missing_items_b.extend(new_items.into_iter());
+                let (resp, new_objects) = super::respond_to_message(&root_b, &object_store_b, &msg, 3, uniform_split::<2>).unwrap();
+                missing_items_b.extend(new_objects.into_iter().map(|(item, _)| item));
 
                 println!("b msg: {resp:?}");
                 if resp.is_end() {
@@ -352,8 +395,8 @@ mod tests {
                 }
 
                 println!("a-----");
-                let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, uniform_split::<2>).unwrap();
-                missing_items_a.extend(new_items.into_iter());
+                let (resp, new_objects) = super::respond_to_message(&root_a, &object_store_a, &resp, 3, uniform_split::<2>).unwrap();
+                missing_items_a.extend(new_objects.into_iter().map(|(item, _)| item));
 
                 msg = resp;
             }
@@ -426,10 +469,10 @@ mod tests {
 
     prop_compose! {
         fn arb_fp_rec()
-            (range in arb_range(), fp in arb_point(), count in 0..1432usize) -> FingerprintRecord<CountingMonoid<MulHashMonoid<Xsk233Point>>> {
+            (range in arb_range(), fp in arb_point(), count in 0..1432usize) -> Fingerprint<CountingMonoid<MulHashMonoid<Xsk233Point>>> {
                 let mut monoid = MulHashMonoid::neutral();
                 monoid.set(fp);
-                FingerprintRecord{
+                Fingerprint{
                     range,
                     fp: CountingMonoid::new(count, monoid).to_encoded().unwrap() ,
                 }
@@ -438,8 +481,8 @@ mod tests {
 
     prop_compose! {
         fn arb_item_set_rec()
-            (range in arb_range(), items in proptest::collection::vec(arb_item(), 0..10), want_response in proptest::bool::ANY) -> ItemSetRecord<CountingMonoid<MulHashMonoid<Xsk233Point>>> {
-                ItemSetRecord {
+            (range in arb_range(), items in proptest::collection::vec(arb_item(), 0..10), want_response in proptest::bool::ANY) -> ItemSet<CountingMonoid<MulHashMonoid<Xsk233Point>>> {
+                ItemSet {
                     range,
                     items,
                     want_response
@@ -449,9 +492,9 @@ mod tests {
 
     prop_compose! {
         fn arb_message()
-            (fps in proptest::collection::vec( arb_fp_rec(), 0..10), item_sets in proptest::collection::vec(arb_item_set_rec(), 0..10)) -> Message<CountingMonoid<MulHashMonoid<Xsk233Point>>>{
+            (fps in proptest::collection::vec( arb_fp_rec(), 0..10), item_sets in proptest::collection::vec(arb_item_set_rec(), 0..10)) -> Message<CountingMonoid<MulHashMonoid<Xsk233Point>>, (LEByteArray<30>, bool)>{
                 Message{
-                    fps, item_sets
+                    fps, item_sets, wants: vec![], provide: vec![]
                 }
             }
     }

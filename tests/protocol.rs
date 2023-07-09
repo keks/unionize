@@ -1,12 +1,12 @@
 extern crate alloc;
-use alloc::{collections::BTreeSet, vec, vec::Vec};
+use alloc::{vec, vec::Vec};
 
 extern crate std;
-use std::{io::Write, print, println};
+use std::{collections::BTreeMap, io::Write, print, println};
 
 use unionize::{
     easy::uniform::{split as uniform_split, Item as UniformItem, Node as UniformNode},
-    protocol::{first_message, respond_to_message},
+    protocol::{first_message, respond_to_message, Message},
 };
 
 use rand::prelude::*;
@@ -19,7 +19,9 @@ fn sync_10k_msgs() {
     let mut bobs_msgs = vec![UniformItem::default(); 2_000];
 
     let mut alice_tree = UniformNode::nil();
+    let mut alice_object_store = BTreeMap::new();
     let mut bob_tree = UniformNode::nil();
+    let mut bob_object_store = BTreeMap::new();
 
     let statm = procinfo::pid::statm_self().unwrap();
     println!("current memory usage: {statm:#?}");
@@ -32,15 +34,19 @@ fn sync_10k_msgs() {
     for msg in &mut shared_msgs {
         rng.fill(&mut msg.0);
         alice_tree = alice_tree.insert(msg.clone());
+        alice_object_store.insert(msg.clone(), (msg.clone(), true));
         bob_tree = bob_tree.insert(msg.clone());
+        bob_object_store.insert(msg.clone(), (msg.clone(), true));
     }
     for msg in &mut alices_msgs {
         rng.fill(&mut msg.0);
         alice_tree = alice_tree.insert(msg.clone());
+        alice_object_store.insert(msg.clone(), (msg.clone(), true));
     }
     for msg in &mut bobs_msgs {
         rng.fill(&mut msg.0);
         bob_tree = bob_tree.insert(msg.clone());
+        bob_object_store.insert(msg.clone(), (msg.clone(), true));
     }
     println!("done after {:?}.", gen_start_time.elapsed());
     // println!("shared messages: {shared_msgs:?}\n");
@@ -52,7 +58,7 @@ fn sync_10k_msgs() {
     let statm = procinfo::pid::statm_self().unwrap();
     println!("current memory usage: {statm:#?}");
 
-    let mut msg = first_message(&alice_tree).unwrap();
+    let mut msg: Message<_, (UniformItem, bool)> = first_message(&alice_tree).unwrap();
 
     let mut missing_items_alice = vec![];
     let mut missing_items_bob = vec![];
@@ -72,8 +78,9 @@ fn sync_10k_msgs() {
             break;
         }
 
-        let (resp, new_items) = respond_to_message(&bob_tree, &msg, 3, uniform_split::<2>).unwrap();
-        missing_items_bob.extend(new_items.into_iter());
+        let (resp, new_objects) =
+            respond_to_message(&bob_tree, &bob_object_store, &msg, 3, uniform_split::<2>).unwrap();
+        missing_items_bob.extend(new_objects.into_iter().map(|(item, _)| item));
 
         // println!("bob msg:   {resp:?}");
         println!(
@@ -85,9 +92,15 @@ fn sync_10k_msgs() {
             break;
         }
 
-        let (resp, new_items) =
-            respond_to_message(&alice_tree, &resp, 3, uniform_split::<2>).unwrap();
-        missing_items_alice.extend(new_items.into_iter());
+        let (resp, new_items) = respond_to_message(
+            &alice_tree,
+            &alice_object_store,
+            &resp,
+            3,
+            uniform_split::<2>,
+        )
+        .unwrap();
+        missing_items_alice.extend(new_items.into_iter().map(|(item, _)| item));
 
         msg = resp;
     }

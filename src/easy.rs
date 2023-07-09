@@ -34,6 +34,7 @@ pub(crate) mod tests {
     };
 
     // helper type for tests
+    pub type TestObject = (u64, bool);
     pub type TestItem = u64;
     pub type TestMonoid = CountingMonoid<SumMonoid<TestItem>>;
     pub type TestNode = Node<TestMonoid>;

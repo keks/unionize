@@ -28,7 +28,7 @@ impl<M> Accumulator<M> for ItemsAccumulator<M>
 where
     M: Monoid,
 {
-    fn add_node<'a, N: Node<M>>(&mut self, node: &'a N) {
+    fn add_node<N: Node<M>>(&mut self, node: &N) {
         let non_nil_node = if let Some(non_nil_node) = node.node_contents() {
             non_nil_node
         } else {

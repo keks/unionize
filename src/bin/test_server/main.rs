@@ -1,31 +1,70 @@
 use std::{
+    collections::BTreeMap,
     io::{Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
 };
 
 use unionize::{
     easy::uniform::*,
+    object::Object,
     protocol::{respond_to_message, Message},
 };
 
+use serde::{Deserialize, Serialize};
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TestObject(Item);
+
+impl Object<Item> for TestObject {
+    fn to_item(&self) -> Item {
+        self.0.clone()
+    }
+
+    fn validate_self_consistency(&self) -> bool {
+        true
+    }
+}
+
 fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:2342")?;
+    println!("listening in {}", listener.local_addr()?);
 
     let mut tree = Node::nil();
+    let mut objects = BTreeMap::new();
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        let new_items = handle_connection(stream, &mut tree)?;
+        handle_connection(stream, &mut tree, &mut objects)?;
+    }
 
-        for item in new_items {
-            // TODO actually this vector will contain some false positives, i.e. values we already
-            // know. we need a function to filter these out, and it should operate over both the
-            // entire tree and the the list at once.
-            tree = tree.insert(item);
-            println!("learned {item:?}")
+    Ok(())
+}
+
+fn handle_connection(
+    mut stream: TcpStream,
+    tree: &mut Node,
+    objects: &mut BTreeMap<Item, TestObject>,
+) -> std::io::Result<()> {
+    loop {
+        let payload = read_frame(&mut stream)?;
+        let msg: Message<Monoid, TestObject> = serde_cbor::from_slice(&payload).unwrap();
+        if msg.is_end() {
+            break;
+        }
+
+        let (resp, new_objs) = respond_to_message(tree, objects, &msg, 3, split::<2>).unwrap();
+        for obj in new_objs {
+            *tree = tree.insert(obj.to_item());
+            objects.insert(obj.to_item(), obj);
+        }
+
+        let msg_bytes = serde_cbor::to_vec(&resp).unwrap();
+        write_frame(&mut stream, &msg_bytes)?;
+        if resp.is_end() {
+            break;
         }
     }
 
+    stream.shutdown(Shutdown::Both)?;
     Ok(())
 }
 
@@ -46,38 +85,5 @@ fn read_frame(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
     let mut buf = vec![0u8; l];
     stream.read(&mut buf)?;
 
-    println!("received data");
-    std::io::stdout().flush()?;
-
     Ok(buf)
-}
-
-fn handle_connection(mut stream: TcpStream, tree: &mut Node) -> std::io::Result<Vec<Item>> {
-    println!(
-        "accepted connection. local_addr:{:?} peer_addr:{:?}",
-        stream.local_addr().unwrap(),
-        stream.peer_addr().unwrap()
-    );
-
-    let mut learned = vec![];
-
-    loop {
-        let payload = read_frame(&mut stream)?;
-        let msg: Message<Monoid> = serde_cbor::from_slice(&payload).unwrap();
-        if msg.is_end() {
-            break;
-        }
-
-        let (resp, new_items) = respond_to_message(tree, &msg, 3, split::<2>).unwrap();
-        learned.extend(&new_items);
-
-        let msg_bytes = serde_cbor::to_vec(&resp).unwrap();
-        write_frame(&mut stream, &msg_bytes)?;
-        if resp.is_end() {
-            break;
-        }
-    }
-
-    stream.shutdown(Shutdown::Both)?;
-    Ok(learned)
 }
