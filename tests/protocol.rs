@@ -97,19 +97,25 @@ fn sync_10k_msgs() {
         loop_start_time.elapsed()
     );
 
-    let mut all_items: BTreeSet<UniformItem> = BTreeSet::from_iter(shared_msgs.iter().cloned());
+    println!("alice: # missing items: {}", missing_items_alice.len());
+    println!("bob:   # missing items: {}", missing_items_bob.len());
+
+    let mut all_items = shared_msgs.clone();
     all_items.extend(alices_msgs.iter());
     all_items.extend(bobs_msgs.iter());
 
-    let mut all_items_alice: BTreeSet<UniformItem> =
-        BTreeSet::from_iter(shared_msgs.iter().cloned());
+    let mut all_items_alice = shared_msgs.clone();
     all_items_alice.extend(alices_msgs.iter());
 
-    let mut all_items_bob: BTreeSet<UniformItem> = BTreeSet::from_iter(shared_msgs.iter().cloned());
+    let mut all_items_bob = shared_msgs.clone();
     all_items_bob.extend(bobs_msgs.iter());
 
     all_items_alice.extend(missing_items_alice.iter());
     all_items_bob.extend(missing_items_bob.iter());
+
+    all_items.sort();
+    all_items_alice.sort();
+    all_items_bob.sort();
 
     // let bob_lacks: Vec<_> = all_items.difference(&all_items_bob).collect();
     // println!("bob lacks {} messages: {bob_lacks:?}", bob_lacks.len());

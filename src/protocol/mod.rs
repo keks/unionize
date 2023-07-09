@@ -319,6 +319,8 @@ mod tests {
             let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
             let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());
 
+            let intersection: Vec<_> = item_set_a.intersection(&item_set_b).cloned().collect();
+
             println!("a items: {item_set_a:?}");
             println!("b items: {item_set_b:?}");
 
@@ -344,8 +346,7 @@ mod tests {
                     break
                 }
 
-
-            println!("b-----");
+                println!("b-----");
                 let (resp, new_items) = super::respond_to_message(&root_b, &msg, 3, uniform_split::<2>).unwrap();
                 missing_items_b.extend(new_items.into_iter());
 
@@ -354,8 +355,7 @@ mod tests {
                     break
                 }
 
-
-            println!("a-----");
+                println!("a-----");
                 let (resp, new_items) = super::respond_to_message(&root_a, &resp, 3, uniform_split::<2>).unwrap();
                 missing_items_a.extend(new_items.into_iter());
 
@@ -364,6 +364,10 @@ mod tests {
 
             println!("a all: {item_set_a:?} + {missing_items_a:?}");
             println!("b all: {item_set_b:?} + {missing_items_b:?}");
+
+            prop_assert_eq!(missing_items_a.len(), item_set_b.len() - intersection.len());
+            prop_assert_eq!(missing_items_b.len(), item_set_a.len() - intersection.len());
+
 
             let mut all_items = item_set_a.clone();
             let mut all_items_a = item_set_a.clone();
