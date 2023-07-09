@@ -1,3 +1,4 @@
+pub mod item_filter;
 pub mod items;
 pub mod simple;
 pub mod split;
@@ -12,6 +13,8 @@ where
     fn add_node<'a, N: Node<M>>(&mut self, node: &'a N);
 
     fn add_item(&mut self, item: &M::Item);
+
+    fn finalize(&mut self) {}
 }
 
 #[cfg(test)]

@@ -14,7 +14,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     item::Item,
     monoid::Monoid,
-    query::{items::ItemsAccumulator, simple::SimpleAccumulator, split::SplitAccumulator},
+    query::{
+        item_filter::ItemFilterAccumulator, items::ItemsAccumulator, simple::SimpleAccumulator,
+        split::SplitAccumulator,
+    },
     range::Range,
     Node, NonNilNodeRef,
 };
@@ -219,7 +222,15 @@ where
             want_response,
         } = item_set;
 
-        new_items.extend_from_slice(&items);
+        let mut dedup_acc = ItemFilterAccumulator::new(items);
+
+        // query_range() returns None if there are no items, in which case we don't need to add
+        // anything anyways
+        if let Some(dedup_query_range) = dedup_acc.query_range() {
+            root.query(&dedup_query_range, &mut dedup_acc);
+            new_items.extend(dedup_acc.result().cloned());
+        }
+
         if *want_response {
             let mut acc = ItemsAccumulator::new();
             root.query(range, &mut acc);
@@ -303,7 +314,7 @@ mod tests {
     proptest! {
         #[test]
         fn protocol_correctness(items_party_a in prop::collection::vec(1..1000u64, 1..100usize), items_party_b in prop::collection::vec(1..1000u64, 1..100usize)) {
-            println!();
+            println!("---test run---");
 
             let item_set_a: BTreeSet<u64> = BTreeSet::from_iter(items_party_a.iter().cloned());
             let item_set_b: BTreeSet<u64> = BTreeSet::from_iter(items_party_b.iter().cloned());

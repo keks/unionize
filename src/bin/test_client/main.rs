@@ -49,6 +49,8 @@ fn read_frame(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
 
     let mut buf = vec![0u8; l];
     stream.read(&mut buf)?;
+    println!("received data");
+    std::io::stdout().flush()?;
     Ok(buf)
 }
 
@@ -63,9 +65,7 @@ fn handle_connection(mut stream: TcpStream, tree: &Node) -> std::io::Result<Vec<
 
     let first = first_message(tree).unwrap();
     let msg = serde_cbor::to_vec(&first).unwrap();
-    print!("seinding first msg...");
     write_frame(&mut stream, &msg)?;
-    println!("done.");
 
     loop {
         let msg_bytes = read_frame(&mut stream)?;

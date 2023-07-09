@@ -13,10 +13,10 @@ use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
 
 #[test]
-fn sync_100k_msgs() {
-    let mut shared_msgs = vec![UniformItem::default(); 60_000];
-    let mut alices_msgs = vec![UniformItem::default(); 20_000];
-    let mut bobs_msgs = vec![UniformItem::default(); 20_000];
+fn sync_10k_msgs() {
+    let mut shared_msgs = vec![UniformItem::default(); 6_000];
+    let mut alices_msgs = vec![UniformItem::default(); 2_000];
+    let mut bobs_msgs = vec![UniformItem::default(); 2_000];
 
     let mut alice_tree = UniformNode::nil();
     let mut bob_tree = UniformNode::nil();

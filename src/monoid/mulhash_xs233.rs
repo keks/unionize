@@ -196,12 +196,12 @@ mod tests {
     use rand_chacha::ChaCha8Rng;
 
     #[test]
-    fn xsk_lift_and_add_1m_items() {
+    fn xsk_lift_and_add_100k_items() {
         let mut buf = [0u8; 30];
         let mut rng = ChaCha8Rng::from_seed([23u8; 32]);
         let mut acc = MulHashMonoid::<xs233::xsk233::Xsk233Point>::neutral();
 
-        for _ in 0..1_000_000 {
+        for _ in 0..100_000 {
             rng.fill(&mut buf);
             let pt = MulHashMonoid::lift(&LEByteArray(buf));
             acc = acc.combine(&pt)

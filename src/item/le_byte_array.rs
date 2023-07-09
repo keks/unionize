@@ -15,14 +15,25 @@ pub struct LEByteArray<const L: usize>(pub [u8; L]);
 
 impl<const L: usize> ::core::fmt::Debug for LEByteArray<L> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let mut flipped = [0u8; 4];
-        for i in 0..4 {
-            flipped[i] = self.0[L - 1 - i];
+        if !f.alternate() {
+            let mut flipped = [0u8; 4];
+            for i in 0..4 {
+                flipped[i] = self.0[L - 1 - i];
+            }
+
+            let hex_str = hex::encode(&flipped);
+
+            write!(f, "LE_{hex_str}")
+        } else {
+            let mut flipped = [0u8; L];
+            for i in 0..L {
+                flipped[i] = self.0[L - 1 - i];
+            }
+
+            let hex_str = hex::encode(&flipped);
+
+            write!(f, "LE_{hex_str}")
         }
-
-        let hex_str = hex::encode(&flipped);
-
-        write!(f, "LE_{hex_str}")
     }
 }
 

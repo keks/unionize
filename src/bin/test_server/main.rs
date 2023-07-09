@@ -45,6 +45,10 @@ fn read_frame(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
 
     let mut buf = vec![0u8; l];
     stream.read(&mut buf)?;
+
+    println!("received data");
+    std::io::stdout().flush()?;
+
     Ok(buf)
 }
 
@@ -58,17 +62,15 @@ fn handle_connection(mut stream: TcpStream, tree: &mut Node) -> std::io::Result<
     let mut learned = vec![];
 
     loop {
-        print!("waiting for data...");
-        std::io::stdout().flush()?;
         let payload = read_frame(&mut stream)?;
         let msg: Message<Monoid> = serde_cbor::from_slice(&payload).unwrap();
-        println!("received.");
-        std::io::stdout().flush()?;
         if msg.is_end() {
             break;
         }
+
         let (resp, new_items) = respond_to_message(tree, &msg, 3, split::<2>).unwrap();
         learned.extend(&new_items);
+
         let msg_bytes = serde_cbor::to_vec(&resp).unwrap();
         write_frame(&mut stream, &msg_bytes)?;
         if resp.is_end() {
