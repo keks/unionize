@@ -7,6 +7,8 @@ mod fmt;
 mod insert;
 mod node_impl;
 
+pub use node_impl::NonNilNodeRef;
+
 #[derive(Clone)]
 pub enum Node<M: Monoid> {
     Node2(NodeData<M, 1>),

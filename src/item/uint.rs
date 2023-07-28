@@ -11,6 +11,8 @@ macro_rules! impl_Item_uint {
                 self + 1
             }
         }
+
+        impl $crate::item::timestamped::TimestampItem for $type {}
     };
 }
 

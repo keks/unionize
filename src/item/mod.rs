@@ -1,5 +1,7 @@
 pub mod byte_slice;
 pub mod le_byte_array;
+pub mod timestamped;
+pub mod tuple;
 pub mod uint;
 
 /// The item that should be replicated. Since this protocol

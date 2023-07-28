@@ -2,6 +2,7 @@ pub mod count;
 pub mod hashxor;
 pub mod mulhash_xs233;
 pub mod sum;
+pub mod timestamped;
 
 use core::fmt::Debug;
 

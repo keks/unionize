@@ -176,6 +176,14 @@ where
     pub fn item_sets(&self) -> &Vec<ItemSet<M>> {
         &self.item_sets
     }
+
+    pub fn wants(&self) -> &Vec<M::Item> {
+        &self.wants
+    }
+
+    pub fn provide(&self) -> &Vec<O> {
+        &self.provide
+    }
 }
 
 pub fn first_message<O, M, N>(root: &N) -> Result<Message<M, O>, EncodeError<M::EncodeError>>

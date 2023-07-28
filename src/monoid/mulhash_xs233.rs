@@ -13,6 +13,8 @@ use serde::{de::Deserializer, Deserialize, Serialize};
 
 use super::Monoid;
 
+pub type Xsk233MulHashMonoid = MulHashMonoid<xs233::xsk233::Xsk233Point>;
+
 /// MulHashMonoid lifts values by mapping them to points on an elliptic curve using a
 /// decoding-rejection-sampling technique (i.e. we try to decode and if that fails try again with a
 /// deterministically changed item).
